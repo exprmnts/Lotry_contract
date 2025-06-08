@@ -5,163 +5,175 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
-import "./RandomWalletPicker.sol";
+// import "./RandomWalletPicker.sol";
 
 contract BondingCurvePool is ERC20 {
     using Math for uint256;
 
     // Constants
     uint256 public constant INITIAL_SUPPLY = 1_000_000_000 * 1e18; // 1 Billion tokens with 18 decimals
-    uint256 public constant MIN_LOTTERY_POOL = 0.05 ether; // 0.05 ETH minimum
-    uint256 public constant MAX_LOTTERY_POOL = 10_000 ether; // 10,000 ETH maximum
+    uint256 public constant MIN_LOTTERY_POOL = 0.01 ether; // 0.01 ETH minimum
+    uint256 public constant MAX_LOTTERY_POOL = 100 ether; // 100 ETH maximum
     uint256 public constant MIN_BUY = 0.001 ether; // Minimum purchase
-    uint256 public constant SCALE_FACTOR = 96; // 0.96 scaling factor (96/100)
-    uint256 public constant SCALE_DENOMINATOR = 100;
+    
+    uint256 private constant ONE_ETHER = 1e18; // For precision in calculations
+
+    // Fee Structure Constants (Numerators and Denominators for percentage calculations)
+    // Tax rate for initial price calculation: 22.22%
+    uint256 private constant TAX_RATE_NUMERATOR = 2222;
+    uint256 private constant TAX_RATE_DENOMINATOR = 10000; // 22.22%
+
+    uint256 private constant LOTTERY_POOL_FEE_NUMERATOR = 20;
+    uint256 private constant LOTTERY_POOL_FEE_DENOMINATOR = 100; // 20%
+
+    uint256 private constant PROTOCOL_POOL_FEE_NUMERATOR = 111;
+    uint256 private constant PROTOCOL_POOL_FEE_DENOMINATOR = 10000; // 1.11%
+
+    uint256 private constant DEV_FEE_NUMERATOR = 111;
+    uint256 private constant DEV_FEE_DENOMINATOR = 10000; // 1.11%
 
     // State variables
     uint256 public initialTokenPrice;
-    uint256 public lotteryPool;
-    uint256 public ethRaised;
-    uint256 public constant_k; // The K in the constant product formula
-    uint256 public migrated_supply;
+    uint256 public lotteryPool; // Target ETH to be collected
+    uint256 public ethRaised; // Total ETH collected by the curve
+    uint256 public constant_k; // The K in the constant product formula (v_tokens * v_eth)
     
-    // Virtual reserves (calculated values)
+    // Virtual reserves
     uint256 public virtualTokenReserve;
     uint256 public virtualEthReserve;
     
-    event TokensPurchased(address indexed buyer, uint256 amountEth, uint256 amountTokens);
+    // Accumulated Taxes/Fees
+    uint256 public accumulatedLotteryTax;
+    uint256 public accumulatedProtocolTax;
+    uint256 public accumulatedDevTax;
+    bool public isLotteryTaxActive = true;
+        
+    event TokensPurchased(address indexed buyer, uint256 grossEthAmount, uint256 netEthForCurve, uint256 tokensReceived, uint256 lotteryFeeApplied);
     event TokensSold(address indexed seller, uint256 amountTokens, uint256 amountEth);
     event LotteryPoolUpdated(uint256 newLotteryPool);
+    event CurveParametersUpdated(uint256 virtualTokenRes, uint256 virtualEthRes, uint256 k);
+    event LotteryTaxStatusChanged(bool isActive);
 
-    // TODO: try after removing memory keyword
     constructor(
         string memory name,
         string memory symbol,
-        uint256 _initialTokenPrice,
-        uint256 _initialLotteryPool,
-        address _treasury
+        uint256 _initialLotteryPool
     ) ERC20(name, symbol) {
-        require(_initialTokenPrice > 0, "Initial price must be greater than 0");
         require(_initialLotteryPool >= MIN_LOTTERY_POOL, "Lottery pool too small");
         require(_initialLotteryPool <= MAX_LOTTERY_POOL, "Lottery pool too large");
 
-        initialTokenPrice = _initialTokenPrice;
         lotteryPool = _initialLotteryPool;
-        
-        // Mint initial tokens to the contract
         _mint(address(this), INITIAL_SUPPLY);
         
-        // Optional: Set aside tokens for team/treasury
-       // uint256 treasuryAmount = INITIAL_SUPPLY * 20/100; // 20% for team/treasury (200M tokens)
+        // Calculate the conceptual liquidity pool size.
+        uint256 liquidityPool = (lotteryPool * TAX_RATE_DENOMINATOR) / TAX_RATE_NUMERATOR;
+        require(liquidityPool > 0, "Liquidity pool must be positive");
 
-        uint256 treasuryAmount = INITIAL_SUPPLY * 20/100; // 20% for team/treasury/to liquidity pool (200M tokens)
-        _transfer(address(this), _treasury, treasuryAmount);
-        
-        // Set the migrated supply (tokens not in the contract)
-        migrated_supply = treasuryAmount; // 200M tokens (20% of total)
-        
-        // Initialize virtual reserves
-        updateVirtualReserves();
-    }
-    
-    // Calculate virtual reserves based on lottery pool
-    function updateVirtualReserves() public {
-        // Virtual token reserve = -2L / (P₀ - L/S_migrated)
-        require(migrated_supply > 0, "Migrated supply must be greater than 0");
-        require(initialTokenPrice > 0, "Initial price must be greater than 0");
-        
-        // Calculate L/S_migrated
-        uint256 lotteryPerSupply = (lotteryPool * 1e18) / migrated_supply;
-        
-        // Calculate denominator (P₀ - L/S_migrated)
-        require(initialTokenPrice > lotteryPerSupply, "Initial price must be greater than L/S_migrated");
-        uint256 denominator = initialTokenPrice - lotteryPerSupply;
-        
-        // Calculate virtual token reserve = -2L / (P₀ - L/S_migrated)
-        // Since we can't have negative numbers in Solidity, we'll work with the absolute value
-        uint256 newVirtualTokenReserve = (2 * lotteryPool * 1e18) / denominator;
-        
-        if (constant_k == 0) {
-            // First time initialization
-            virtualTokenReserve = newVirtualTokenReserve;
-            virtualEthReserve = (initialTokenPrice * virtualTokenReserve) / 1e18;
-            constant_k = (virtualEthReserve * virtualTokenReserve) / 1e18;
-        } else {
-            // For subsequent updates, maintain constant K by adjusting ETH reserve
-            virtualTokenReserve = newVirtualTokenReserve;
-            virtualEthReserve = (constant_k * 1e18) / virtualTokenReserve;
-        }
+        // Set curve parameters to meet the economic requirement: selling 800 million tokens returns 110% of the liquidity pool.
+        uint256 V_TOKEN_MULTIPLIER = 10; 
+        virtualTokenReserve = INITIAL_SUPPLY * V_TOKEN_MULTIPLIER;
+
+        uint256 tokensToSellForCondition = (INITIAL_SUPPLY * 80) / 100; // 800M tokens
+        uint256 targetEthReturn = (liquidityPool * 110) / 100; // 110% of liquidityPool
+
+        // Calculate required virtual ETH reserve to meet the condition:
+        // targetEthReturn = virtualEthReserve * (tokensToSellForCondition / (virtualTokenReserve + tokensToSellForCondition))
+        // Solving for virtualEthReserve:
+        uint256 numerator = targetEthReturn * (virtualTokenReserve + tokensToSellForCondition);
+        virtualEthReserve = numerator / tokensToSellForCondition;
+
+        // Determine constant k and the effective initial price from the reserves.
+        constant_k = (virtualTokenReserve * virtualEthReserve) / ONE_ETHER;
+        initialTokenPrice = (virtualEthReserve * ONE_ETHER) / virtualTokenReserve;
+
+        emit CurveParametersUpdated(virtualTokenReserve, virtualEthReserve, constant_k);
     }
     
     // Calculate current token price based on virtual reserves
     function calculateCurrentPrice() public view returns (uint256) {
-        return (virtualEthReserve * 1e18) / virtualTokenReserve;
+        if (virtualTokenReserve == 0) return type(uint256).max; // Indicate effectively infinite price
+        return (virtualEthReserve * ONE_ETHER) / virtualTokenReserve; // Price in ETH per token, scaled by 1e18
     }
 
-    // Calculate how many tokens will be received for a given ETH amount
-    function calculateBuyReturn(uint256 ethAmount) public view returns (uint256) {        
-        // Apply the bonding curve formula: ΔS = V_TOKENS - K/(V_ETH + 0.96x)
-        uint256 scaledEthAmount = (ethAmount * SCALE_FACTOR) / SCALE_DENOMINATOR;
-        uint256 newVirtualEthReserve = virtualEthReserve + scaledEthAmount;
+    // Calculate how many tokens will be received for a given NET ETH amount
+    function calculateBuyReturn(uint256 netEthAmount) public view returns (uint256) {        
+        require(netEthAmount > 0, "Net ETH for curve is zero");
+        if (virtualEthReserve + netEthAmount == 0) return 0;
         
-        // Calculate new virtual token reserve using K = V_ETH * V_TOKENS
-        uint256 newVirtualTokenReserve = (constant_k * 1e18) / newVirtualEthReserve;
+        uint256 k_scaled = constant_k * ONE_ETHER; 
+        uint256 newVirtualEthReserve = virtualEthReserve + netEthAmount;
+        if (newVirtualEthReserve == 0) return virtualTokenReserve;
+
+        uint256 newVirtualTokenReserve = k_scaled / newVirtualEthReserve;
         
-        // Tokens to transfer = change in virtual token reserve
-        require(virtualTokenReserve > newVirtualTokenReserve, "Invalid state: token reserve would increase");
-        uint256 tokensToTransfer = virtualTokenReserve - newVirtualTokenReserve;
-        
-        return tokensToTransfer;
+        if (virtualTokenReserve > newVirtualTokenReserve) {
+            return virtualTokenReserve - newVirtualTokenReserve;
+        }
+        return 0;
     }
 
     // Calculate how much ETH will be returned for a given token amount
     function calculateSellReturn(uint256 tokenAmount) public view returns (uint256) {
-        // Apply the bonding curve formula: ΔE = V_ETH - K/(V_TOKENS + 0.96y)
-        uint256 scaledTokenAmount = (tokenAmount * SCALE_FACTOR) / SCALE_DENOMINATOR;
-        uint256 newVirtualTokenReserve = virtualTokenReserve + scaledTokenAmount;
+        require(tokenAmount > 0, "Token amount must be > 0");
+        if (virtualTokenReserve == 0) return virtualEthReserve;
         
-        // Calculate new virtual ETH reserve using K = V_ETH * V_TOKENS
-        uint256 newVirtualEthReserve = (constant_k * 1e18) / newVirtualTokenReserve;
-        
-        // ETH to return = change in virtual ETH reserve
-        require(virtualEthReserve > newVirtualEthReserve, "Invalid state: ETH reserve would increase");
-        uint256 ethToReturn = virtualEthReserve - newVirtualEthReserve;
-        
-        return ethToReturn;
+        uint256 k_scaled = constant_k * ONE_ETHER;
+        uint256 newVirtualTokenReserve = virtualTokenReserve + tokenAmount;
+        if (newVirtualTokenReserve == 0) return virtualEthReserve;
+
+        uint256 newVirtualEthReserve = k_scaled / newVirtualTokenReserve;
+
+        if (virtualEthReserve > newVirtualEthReserve) {
+            return virtualEthReserve - newVirtualEthReserve;
+        }
+        return 0;
     }
 
     // Buy tokens with ETH
     function buy() public payable {
         require(msg.value >= MIN_BUY, "Below minimum buy amount");
         
-        // Check against maximum buy limit
-        // What This Means
-        // Your contract is implementing a liquidity protection mechanism that prevents any single buyer 
-        // from consuming too much of the remaining pool in one transaction. This is a common practice to:
-        // 1. Prevent price manipulation by large buyers
-        // 2. Ensure fair distribution of tokens among many participants
-        // 3. Reduce the impact of "whales" on the token price
-        uint256 maxBuy = (lotteryPool - ethRaised) * 10 / 100; // 10% of remaining pool
-        require(msg.value <= maxBuy, "Exceeds maximum buy amount");
+        uint256 grossEthAmount = msg.value;
+        uint256 totalFeesPaid = 0;
+        uint256 lotteryFeeApplied = 0;
+
+        // Apply fees
+        if (isLotteryTaxActive) {
+            lotteryFeeApplied = (grossEthAmount * LOTTERY_POOL_FEE_NUMERATOR) / LOTTERY_POOL_FEE_DENOMINATOR;
+            accumulatedLotteryTax += lotteryFeeApplied;
+            totalFeesPaid += lotteryFeeApplied;
+
+            if (accumulatedLotteryTax >= lotteryPool) {
+                isLotteryTaxActive = false;
+                emit LotteryTaxStatusChanged(false);
+            }
+        }
+
+        uint256 protocolFee = (grossEthAmount * PROTOCOL_POOL_FEE_NUMERATOR) / PROTOCOL_POOL_FEE_DENOMINATOR;
+        accumulatedProtocolTax += protocolFee;
+        totalFeesPaid += protocolFee;
+
+        uint256 devFee = (grossEthAmount * DEV_FEE_NUMERATOR) / DEV_FEE_DENOMINATOR;
+        accumulatedDevTax += devFee;
+        totalFeesPaid += devFee;
+
+        require(grossEthAmount > totalFeesPaid, "Fees exceed sent amount");
+        uint256 netEthForCurve = grossEthAmount - totalFeesPaid;
         
-        uint256 tokensToTransfer = calculateBuyReturn(msg.value);
-        require(tokensToTransfer > 0, "Would receive zero tokens");
-        require(tokensToTransfer <= balanceOf(address(this)), "Not enough tokens in the pool");
+        uint256 tokensToTransfer = calculateBuyReturn(netEthForCurve);
+        require(tokensToTransfer > 0, "Would receive zero tokens for net ETH");
+        
+        require(tokensToTransfer <= balanceOf(address(this)), "Purchase exceeds available supply");
         
         // Update state
-        ethRaised += msg.value;
+        ethRaised += netEthForCurve; 
         
-        // Update virtual reserves for the buy operation
-        uint256 scaledEthAmount = (msg.value * SCALE_FACTOR) / SCALE_DENOMINATOR;
-        virtualEthReserve += scaledEthAmount;
-        virtualTokenReserve = (constant_k * 1e18) / virtualEthReserve;
+        virtualEthReserve += netEthForCurve; 
+        virtualTokenReserve -= tokensToTransfer;
         
-        // Transfer tokens to buyer
         _transfer(address(this), msg.sender, tokensToTransfer);
-
-        // Call the VRF Function RandomWalletPicker
                 
-        emit TokensPurchased(msg.sender, msg.value, tokensToTransfer);
+        emit TokensPurchased(msg.sender, grossEthAmount, netEthForCurve, tokensToTransfer, lotteryFeeApplied);
     }
 
     // Sell tokens to get ETH back
@@ -171,50 +183,36 @@ contract BondingCurvePool is ERC20 {
 
         uint256 ethToReturn = calculateSellReturn(tokenAmount);
         require(ethToReturn > 0, "Would receive zero ETH");
-        require(ethToReturn <= address(this).balance, "Contract has insufficient ETH");
-        
+        require(ethToReturn <= virtualEthReserve, "Sell amount exceeds curve's virtual ETH reserve");
+
         // Update state
         _transfer(msg.sender, address(this), tokenAmount);
         
-        // Update virtual reserves for the sell operation
-        uint256 scaledTokenAmount = (tokenAmount * SCALE_FACTOR) / SCALE_DENOMINATOR;
-        virtualTokenReserve += scaledTokenAmount;
-        virtualEthReserve = (constant_k * 1e18) / virtualTokenReserve;
+        ethRaised -= ethToReturn;
+
+        virtualTokenReserve += tokenAmount;
+        virtualEthReserve -= ethToReturn;
         
-        // Transfer ETH to seller
         payable(msg.sender).transfer(ethToReturn);
         
         emit TokensSold(msg.sender, tokenAmount, ethToReturn);
     }
-    
-    // Function to burn tokens (reduces supply without affecting curve math)
-    function burn(uint256 tokenAmount) public {
-        require(tokenAmount > 0, "Must burn more than 0 tokens");
-        require(balanceOf(msg.sender) >= tokenAmount, "Not enough tokens to burn");
-        
-        _burn(msg.sender, tokenAmount);
-    }
-    
-    // Fallback function to handle ETH transfers
-    receive() external payable {
-        // Auto-buy tokens when ETH is sent to the contract
-        if (msg.sender != address(0)) {
-            buy();
-        } else {
-            // Direct transfers increase the lottery pool
-            lotteryPool += msg.value;
-            updateVirtualReserves();
-            emit LotteryPoolUpdated(lotteryPool);
-        }
-    }
 
     // Fund the lottery pool with ETH
     function addToLotteryPool() external payable {
-        require(lotteryPool + msg.value <= MAX_LOTTERY_POOL, "Would exceed maximum lottery pool");
+        _addToLotteryPoolInternal(msg.value);
+    }
+
+    function _addToLotteryPoolInternal(uint256 _value) internal {
+        require(_value > 0, "Must add positive ETH amount to lottery pool");
+        require(lotteryPool + _value <= MAX_LOTTERY_POOL, "Would exceed maximum lottery pool");
         
-        lotteryPool += msg.value;
-        updateVirtualReserves();
+        lotteryPool += _value;
         
         emit LotteryPoolUpdated(lotteryPool);
+    }
+
+    function isLotteryTargetMet() public view returns (bool) {
+        return accumulatedLotteryTax >= lotteryPool;
     }
 }
