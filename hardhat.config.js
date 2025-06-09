@@ -9,8 +9,8 @@ module.exports = {
       // Default Hardhat network settings (if any specific needed)
     },
     base_sepolia: {
-      url: process.env.BASE_SEPOLIA_RPC_URL || "https://base-sepolia.g.alchemy.com/v2/lEz-Nt7Cld5X_P3KJooPmUxDQzNtrRre", // Replace with your RPC URL or set in .env
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : ['2ed3999c81c79fc39dd24e48e6301684a169fa59021d00eb5dff8b7eb5f6313b'], // Replace with your private key or set in .env
+      url: process.env.BASE_SEPOLIA_RPC_URL,
+      accounts:[process.env.PRIVATE_KEY],
       chainId: 84532, // Base Sepolia chain ID
     },
   },
