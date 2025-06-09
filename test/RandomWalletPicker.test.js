@@ -15,23 +15,37 @@ const MOCK_WALLET_ADDRESSES = [
     "0xAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 ];
 
+// Corresponding stakes for each wallet (e.g., number of tickets)
+const MOCK_STAKES = [10, 20, 5, 15, 30, 10, 5, 25, 50, 5]; // Sum = 175
 
-const DEPLOYED_RANDOM_WALLET_PICKER_ADDRESS = "0x566Ba21d1c5F37153CF1FD9Ddeb5a0117084FF6B";
+const DEPLOYED_RANDOM_WALLET_PICKER_ADDRESS = "0x0ab7bd90F78D416c95dd9bea80efF397c6030Ec5";
 
 describe("RandomWalletPicker with Live VRF (Base Sepolia)", function () {
     let randomWalletPicker;
     let owner;
 
     beforeEach(async function () {
-        if (DEPLOYED_RANDOM_WALLET_PICKER_ADDRESS === "YOUR_DEPLOYED_RANDOM_WALLET_PICKER_ADDRESS_HERE") {
+        if (
+            DEPLOYED_RANDOM_WALLET_PICKER_ADDRESS ===
+            "YOUR_DEPLOYED_RANDOM_WALLET_PICKER_ADDRESS_HERE"
+        ) {
             this.skip(); // Skip tests if address is not set
-            // Alternatively, throw new Error("Please set your deployed contract address in the test file.");
         }
         [owner] = await ethers.getSigners();
-        
-        randomWalletPicker = await ethers.getContractAt("RandomWalletPicker", DEPLOYED_RANDOM_WALLET_PICKER_ADDRESS, owner);
 
-        console.log(`Connected to RandomWalletPicker at: ${await randomWalletPicker.getAddress()}`);
+        // Explicitly use the factory to attach to the deployed contract.
+        // This is more robust and ensures the correct ABI is loaded for event parsing.
+        const RandomWalletPickerFactory = await ethers.getContractFactory(
+            "RandomWalletPicker",
+            owner
+        );
+        randomWalletPicker = await RandomWalletPickerFactory.attach(
+            DEPLOYED_RANDOM_WALLET_PICKER_ADDRESS
+        );
+
+        console.log(
+            `Connected to RandomWalletPicker at: ${await randomWalletPicker.getAddress()}`
+        );
         console.log(`Test signer (owner): ${owner.address}`);
         console.log("Ensure this signer is the owner of the deployed contract for owner-only functions.");
         console.log("Ensure the contract is correctly set up with Chainlink VRF on Base Sepolia and the subscription is funded.");
@@ -39,131 +53,142 @@ describe("RandomWalletPicker with Live VRF (Base Sepolia)", function () {
 
     describe("Deployment (Querying existing contract)", function () {
         it("Should have the correct owner (ensure test signer is the contract owner)", async function () {
-            // This test assumes the 'owner' (signer[0]) from Hardhat is the expected owner of the deployed contract.
-            // If your deployed contract has a different owner, this test will fail or needs adjustment.
             expect(await randomWalletPicker.owner()).to.equal(owner.address);
         });
 
-        it("Should have the initial wallet addresses (or currently set addresses)", async function () {
-            const storedWallets = await randomWalletPicker.getAllWallets();
-            expect(storedWallets.length).to.equal(10);
-            // We can't be certain about the exact addresses if they were changed after deployment,
-            // but we can check if they are valid addresses.
-            storedWallets.forEach(wallet => expect(wallet).to.be.properAddress);
-            // If you want to check against MOCK_WALLET_ADDRESSES, ensure they were set during deployment or via setWallets
-            // For example: expect(storedWallets[0].toLowerCase()).to.equal(MOCK_WALLET_ADDRESSES[0].toLowerCase());
+        it("Should be able to query the participants array", async function () {
+            // This test just ensures we can call the getter. On a live contract, it may not be empty.
+            const participants = await randomWalletPicker.getAllParticipants();
+            expect(participants).to.be.an('array');
         });
     });
 
     describe("pickRandomWallet and fulfillRandomWords (Live VRF)", function () {
-        it("Should pick a random wallet using live VRF and receive the callback", async function (done) {
-            this.timeout(300000); // 5 minutes timeout for VRF callback
+        it("Should pick a random wallet using live VRF and receive the callback", async function () {
+            this.timeout(360000); // 6 minutes timeout for VRF callback
 
-            console.log("\nAttempting to pick a random wallet...");
-            console.log("This will send a transaction and wait for the Chainlink VRF callback.");
-            console.log("Ensure your contract's VRF subscription is funded on Base Sepolia.");
+            const inProgress = await randomWalletPicker.s_requestInProgress();
+            if (inProgress) {
+                console.warn(
+                    "WARNING: A request is already in progress. This test may fail if the contract is stuck."
+                );
+            }
+
+            console.log(
+                "\nAttempting to pick a random wallet with weighted stakes..."
+            );
+            console.log(
+                "This will send a transaction and wait for the Chainlink VRF callback."
+            );
+
+            // Set up the listener for the WalletPicked event *before* sending the transaction
+            const walletPickedPromise = new Promise((resolve, reject) => {
+                randomWalletPicker.once(
+                    "WalletPicked",
+                    (eventRequestId, winnerAddress) => {
+                        console.log("\nReceived a WalletPicked event.");
+                        console.log(
+                            `  --> Event Request ID: ${eventRequestId.toString()}`
+                        );
+                        console.log(
+                            "  --> Picked Wallet Address from event:",
+                            winnerAddress
+                        );
+                        resolve({ eventRequestId, winnerAddress });
+                    }
+                );
+            });
 
             // Request randomness
-            // Ensure the 'owner' signer is the owner of the contract
-            const tx = await randomWalletPicker.pickRandomWallet();
-            console.log(`pickRandomWallet transaction sent: ${tx.hash}. Waiting for confirmation...`);
-            const receipt = await tx.wait(1); // Wait for 1 confirmation
+            const tx = await randomWalletPicker.pickRandomWallet(
+                MOCK_WALLET_ADDRESSES,
+                MOCK_STAKES
+            );
+            console.log(
+                `pickRandomWallet transaction sent: ${tx.hash}. Waiting for confirmation...`
+            );
+            const receipt = await tx.wait(1);
             console.log("pickRandomWallet transaction confirmed.");
 
-            // Get request ID from the RandomnessRequested event using a more robust query
-            const PRandomnessRequested = randomWalletPicker.filters.RandomnessRequested();
-            // Use receipt.blockNumber for fromBlock and toBlock
-            const eventsInBlock = await randomWalletPicker.queryFilter(PRandomnessRequested, receipt.blockNumber, receipt.blockNumber);
+            // Get our request ID using the robust queryFilter method.
+            console.log(`Searching for RandomnessRequested event in block ${receipt.blockNumber}...`);
             
-            console.log(`Found ${eventsInBlock.length} RandomnessRequested event(s) in block ${receipt.blockNumber}.`);
-            console.log(`Looking for transaction hash: ${receipt.hash}`);
+            // Query from the transaction's block to the latest block to account for RPC node delays.
+            const eventFilter = randomWalletPicker.filters.RandomnessRequested();
+            const events = await randomWalletPicker.queryFilter(eventFilter, receipt.blockNumber, 'latest');
 
-            // Filter further to find the event from our specific transaction, if multiple similar events in the block
-            let requestId;
-            for (const event of eventsInBlock) {
-                console.log(`  Event transactionHash: ${event.transactionHash}`);
-                if (event.transactionHash === receipt.hash) {
-                    console.log("    Matching event found via queryFilter!");
-                    requestId = event.args.requestId;
+            console.log(`Found ${events.length} RandomnessRequested event(s) since the transaction's block.`);
+            if (events.length > 0) {
+                console.log("--- Raw Event Data ---");
+                // The event.args object from ethers contains BigInts for uint256 values.
+                // JSON.stringify() cannot serialize BigInts, which was causing the test to crash.
+                // We use a replacer function to convert BigInts to strings during serialization.
+                const replacer = (key, value) => (typeof value === "bigint" ? value.toString() : value);
+                events.forEach((event, index) => {
+                    console.log(`Event[${index}]:`);
+                    console.log(`  tx hash: ${event.transactionHash}`);
+                    console.log(`  args: ${JSON.stringify(event.args, replacer)}`);
+                });
+                console.log("----------------------");
+            }
+
+            let ourRequestId;
+            for (const event of events) {
+                if (event.transactionHash.toLowerCase() === tx.hash.toLowerCase()) {
+                    console.log("Matching event found!");
+                    ourRequestId = event.args.requestId;
                     break;
                 }
             }
-            
-            if (requestId === undefined) {
-                console.error("ERROR: RandomnessRequested event for our transaction was not found in the block's events via queryFilter.");
-                // console.log("Receipt details:", JSON.stringify(receipt, null, 2)); // Keep for deeper debugging if needed
-                // As a fallback, let's check receipt.logs if available
-                if (receipt.logs && receipt.logs.length > 0) {
-                    console.log("Attempting to parse receipt.logs as a fallback...");
-                    for (const log of receipt.logs) {
-                        try {
-                            // Ensure the log is from our contract before trying to parse
-                            if (log.address.toLowerCase() === randomWalletPicker.address.toLowerCase()) {
-                                const parsedLog = randomWalletPicker.interface.parseLog(log);
-                                if (parsedLog && parsedLog.name === "RandomnessRequested" && log.transactionHash === receipt.hash) { // Compare with receipt.hash
-                                    console.log("    Matching event found in receipt.logs!");
-                                    requestId = parsedLog.args.requestId;
-                                    break;
-                                }
-                            }
-                        } catch (e) {
-                            // Not an event from our contract or not decodable
-                        }
-                    }
-                }
-            }
 
-            expect(requestId).to.not.be.undefined; // Ensure our transaction emitted the event
+            expect(ourRequestId, "Could not find ourRequestId from the RandomnessRequested event").to.not.be.undefined;
 
-            console.log(`Randomness requested with requestId: ${requestId.toString()}`);
-            
-            console.log("Waiting for Chainlink VRF to fulfill the request and emit WalletPicked event...");
+            console.log(
+                `Randomness requested with our request ID: ${ourRequestId.toString()}`
+            );
+            console.log(
+                "Waiting for Chainlink VRF to fulfill the request..."
+            );
             console.log("(This might take a few minutes on Base Sepolia)");
 
-            // Wait for the WalletPicked event
-            const pickedWalletAddress = await new Promise((resolve, reject) => {
-                const eventTimeout = setTimeout(() => {
-                    reject(new Error("Timeout: WalletPicked event not received within 5 minutes. Check VRF callback."));
-                }, 300000); // 5 minutes
+            // Now, wait for the event we were listening for
+            const { eventRequestId, winnerAddress } = await walletPickedPromise;
 
-                randomWalletPicker.once("WalletPicked", (eventRequestId, winnerAddress, event) => {
-                    clearTimeout(eventTimeout);
-                    console.log("\nWalletPicked event listener triggered!");
-                    console.log("--------------------------------");
-                    console.log("Request ID from our earlier request:", requestId.toString());
-                    console.log("Request ID from WalletPicked event:", eventRequestId.toString());
-                    console.log("Picked Wallet Address from event:", winnerAddress);
-                    console.log("--------------------------------\n");
-                    
-                    if (eventRequestId.eq(requestId)) {
-                        console.log("Request IDs match. Resolving promise with picked wallet.");
-                        resolve(winnerAddress);
-                    } else {
-                        console.error("CRITICAL WARNING: Request IDs do NOT match. This should not happen if only one request is active.");
-                        console.error(`Expected: ${requestId.toString()}, Got: ${eventRequestId.toString()}`);
-                        // Even if IDs don't match, we should reject to prevent a timeout and fail the test clearly.
-                        reject(new Error(`WalletPicked event received, but for unexpected requestId. Expected: ${requestId.toString()}, Got: ${eventRequestId.toString()}`));
-                    }
-                });
-            });
+            // Check that the event we received matches our request
+            expect(eventRequestId).to.equal(ourRequestId);
+            console.log(
+                "\nWalletPicked event is for the correct request ID!"
+            );
 
-            expect(pickedWalletAddress).to.be.properAddress;
-            // Check if the picked wallet is one of the MOCK_WALLET_ADDRESSES
-            // This assumes MOCK_WALLET_ADDRESSES are the ones configured in the contract
-            const lowerCaseMockWallets = MOCK_WALLET_ADDRESSES.map(addr => addr.toLowerCase());
-            expect(lowerCaseMockWallets).to.include(pickedWalletAddress.toLowerCase());
-            
-            console.log(`Successfully picked wallet: ${pickedWalletAddress}`);
+            // Now perform all assertions
+            expect(winnerAddress).to.be.properAddress;
+            const lowerCaseMockWallets = MOCK_WALLET_ADDRESSES.map((addr) =>
+                addr.toLowerCase()
+            );
+            expect(lowerCaseMockWallets).to.include(winnerAddress.toLowerCase());
+
+            console.log(`Successfully picked wallet: ${winnerAddress}`);
 
             const storedRandomWord = await randomWalletPicker.s_randomWord();
-            console.log("Stored s_randomWord (from Chainlink VRF):", storedRandomWord.toString());
-            
+            console.log(
+                "Stored s_randomWord (from Chainlink VRF):",
+                storedRandomWord.toString()
+            );
+
             console.log("Verifying with getPickedWallet()...");
-            const storedPickedWallet = await randomWalletPicker.getPickedWallet();
-            expect(storedPickedWallet.toLowerCase()).to.equal(pickedWalletAddress.toLowerCase());
+            const storedPickedWallet =
+                await randomWalletPicker.getPickedWallet();
+            expect(storedPickedWallet.toLowerCase()).to.equal(
+                winnerAddress.toLowerCase()
+            );
             console.log(`getPickedWallet() confirmed: ${storedPickedWallet}`);
 
-            done();
+            const requestInProgressAfter =
+                await randomWalletPicker.s_requestInProgress();
+            expect(requestInProgressAfter).to.be.false;
+            console.log(
+                "s_requestInProgress flag is correctly set to false after fulfillment."
+            );
         });
     });
 }); 
