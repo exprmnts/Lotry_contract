@@ -5,11 +5,11 @@ schema:
   file: ./schema.graphql
 dataSources:
   - kind: ethereum
-    name: TokenLaunchpad_json
+    name: TokenLaunchpad
     network: base-sepolia
     source:
       address: "0xca46CdB15fa236099920D04F5af9e3f8271805Fc"
-      abi: TokenLaunchpad_json
+      abi: TokenLaunchpad
       startBlock: 26930484
     mapping:
       kind: ethereum/events
@@ -19,11 +19,11 @@ dataSources:
         - OwnershipTransferred
         - TokenCreated
       abis:
-        - name: TokenLaunchpad_json
-          file: ./abis/TokenLaunchpad_json.json
+        - name: TokenLaunchpad
+          file: ./abis/TokenLaunchpad.json
       eventHandlers:
         - event: OwnershipTransferred(indexed address,indexed address)
           handler: handleOwnershipTransferred
         - event: TokenCreated(indexed address,string,string)
           handler: handleTokenCreated
-      file: ./src/token-launchpad-json.ts
+      file: ./src/token-launchpad.ts
