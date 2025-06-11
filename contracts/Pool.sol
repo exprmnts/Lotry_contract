@@ -54,6 +54,10 @@ contract BondingCurvePool is ERC20 {
     event CurveParametersUpdated(uint256 virtualTokenRes, uint256 virtualEthRes, uint256 k);
     event LotteryTaxStatusChanged(bool isActive);
 
+    // Events for buy and sell
+    event BuyEvent(address indexed tokenAddress, uint256 indexed timestamp, uint256 ethPrice);
+    event SellEvent(address indexed tokenAddress, uint256 indexed timestamp, uint256 ethPrice);
+
     constructor(
         string memory name,
         string memory symbol,
@@ -172,8 +176,10 @@ contract BondingCurvePool is ERC20 {
         virtualTokenReserve -= tokensToTransfer;
         
         _transfer(address(this), msg.sender, tokensToTransfer);
-                
-        emit TokensPurchased(msg.sender, grossEthAmount, netEthForCurve, tokensToTransfer, lotteryFeeApplied);
+        uint256 currentPrice = calculateCurrentPrice();
+        emit BuyEvent(address(this), block.timestamp, currentPrice);
+
+        //emit TokensPurchased(msg.sender, grossEthAmount, netEthForCurve, tokensToTransfer, lotteryFeeApplied);
     }
 
     // Sell tokens to get ETH back
@@ -195,7 +201,10 @@ contract BondingCurvePool is ERC20 {
         
         payable(msg.sender).transfer(ethToReturn);
         
-        emit TokensSold(msg.sender, tokenAmount, ethToReturn);
+        uint256 currentPrice = calculateCurrentPrice();
+        emit SellEvent(address(this), block.timestamp, currentPrice);
+
+        //emit TokensSold(msg.sender, tokenAmount, ethToReturn);
     }
 
     // Fund the lottery pool with ETH
