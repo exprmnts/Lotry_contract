@@ -3,27 +3,52 @@ indexerHints:
   prune: auto
 schema:
   file: ./schema.graphql
+
 dataSources:
-  - kind: ethereum
+  - kind: ethereum/contract
     name: TokenLaunchpad
-    network: base-sepolia
+    network: base-sepolia  # or your target network
     source:
-      address: "0xca46CdB15fa236099920D04F5af9e3f8271805Fc"
+      address: '0xca46CdB15fa236099920D04F5af9e3f8271805Fc'  # Known address
       abi: TokenLaunchpad
-      startBlock: 26930484
+      startBlock: 26931123
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
       language: wasm/assemblyscript
+      file: ./src/token-launchpad.ts
       entities:
-        - OwnershipTransferred
-        - TokenCreated
+        - Token
+        - LaunchpadStats
       abis:
         - name: TokenLaunchpad
           file: ./abis/TokenLaunchpad.json
+        - name: BondingCurvePool
+          file: ./abis/BondingCurvePool.json
       eventHandlers:
-        - event: OwnershipTransferred(indexed address,indexed address)
-          handler: handleOwnershipTransferred
         - event: TokenCreated(indexed address,string,string)
           handler: handleTokenCreated
-      file: ./src/token-launchpad.ts
+templates:
+  - name: BondingCurvePool
+    kind: ethereum/contract
+    network: base-sepolia
+    source:
+      abi: BondingCurvePool
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      file: ./src/bonding-curve-pool.ts
+      entities:
+        - Token
+        - BuyEvent
+        - SellEvent
+        - Transaction
+      abis:
+        - name: BondingCurvePool
+          file: ./abis/BondingCurvePool.json
+      eventHandlers:
+        - event: BuyEvent(indexed address,indexed uint256,uint256)
+          handler: handleBuyEvent
+        - event: SellEvent(indexed address,indexed uint256,uint256)
+          handler: handleSellEvent
