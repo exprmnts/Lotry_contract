@@ -48,11 +48,11 @@ contract BondingCurvePool is ERC20 {
     uint256 public accumulatedDevTax;
     bool public isLotteryTaxActive = true;
         
-    event TokensPurchased(address indexed buyer, uint256 grossEthAmount, uint256 netEthForCurve, uint256 tokensReceived, uint256 lotteryFeeApplied);
-    event TokensSold(address indexed seller, uint256 amountTokens, uint256 amountEth);
-    event LotteryPoolUpdated(uint256 newLotteryPool);
-    event CurveParametersUpdated(uint256 virtualTokenRes, uint256 virtualEthRes, uint256 k);
-    event LotteryTaxStatusChanged(bool isActive);
+    // event TokensPurchased(address indexed buyer, uint256 grossEthAmount, uint256 netEthForCurve, uint256 tokensReceived, uint256 lotteryFeeApplied);
+    // event TokensSold(address indexed seller, uint256 amountTokens, uint256 amountEth);
+    // event LotteryPoolUpdated(uint256 newLotteryPool);
+    // event CurveParametersUpdated(uint256 virtualTokenRes, uint256 virtualEthRes, uint256 k);
+    // event LotteryTaxStatusChanged(bool isActive);
 
     // Events for buy and sell
     event BuyEvent(address indexed tokenAddress, uint256 indexed timestamp, uint256 ethPrice);
@@ -90,7 +90,7 @@ contract BondingCurvePool is ERC20 {
         constant_k = (virtualTokenReserve * virtualEthReserve) / ONE_ETHER;
         initialTokenPrice = (virtualEthReserve * ONE_ETHER) / virtualTokenReserve;
 
-        emit CurveParametersUpdated(virtualTokenReserve, virtualEthReserve, constant_k);
+        //emit CurveParametersUpdated(virtualTokenReserve, virtualEthReserve, constant_k);
     }
     
     // Calculate current token price based on virtual reserves
@@ -149,7 +149,7 @@ contract BondingCurvePool is ERC20 {
 
             if (accumulatedLotteryTax >= lotteryPool) {
                 isLotteryTaxActive = false;
-                emit LotteryTaxStatusChanged(false);
+                //emit LotteryTaxStatusChanged(false);
             }
         }
 
@@ -177,6 +177,8 @@ contract BondingCurvePool is ERC20 {
         
         _transfer(address(this), msg.sender, tokensToTransfer);
         uint256 currentPrice = calculateCurrentPrice();
+
+        // TODO: Might have to emit accumulatedLotteryTax 
         emit BuyEvent(address(this), block.timestamp, currentPrice);
 
         //emit TokensPurchased(msg.sender, grossEthAmount, netEthForCurve, tokensToTransfer, lotteryFeeApplied);
@@ -218,7 +220,7 @@ contract BondingCurvePool is ERC20 {
         
         lotteryPool += _value;
         
-        emit LotteryPoolUpdated(lotteryPool);
+        //emit LotteryPoolUpdated(lotteryPool);
     }
 
     function isLotteryTargetMet() public view returns (bool) {
