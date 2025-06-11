@@ -23,6 +23,7 @@ export function handleOwnershipTransferred(
 
 export function handleTokenCreated(event: TokenCreatedEvent): void {
 
+  // Saves the sub contract address 
   BondingCurvePool.create(event.params.tokenAddress)
 
   let entity = new TokenCreated(
