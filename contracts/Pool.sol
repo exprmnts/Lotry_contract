@@ -2,12 +2,13 @@
 
 pragma solidity ^0.8.20;
 
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
 // import "./RandomWalletPicker.sol";
 
-contract BondingCurvePool is ERC20 {
+contract BondingCurvePool is ERC20, Ownable {
     using Math for uint256;
 
     // Constants
@@ -31,8 +32,10 @@ contract BondingCurvePool is ERC20 {
 
     uint256 private constant DEV_FEE_NUMERATOR = 111;
     uint256 private constant DEV_FEE_DENOMINATOR = 10000; // 1.11%
+    address public constant PROTOCOL_POOL_ADDRESS = 0x0Df21BEAAadce4893A05503Cee6Ece4d1B087449;
 
     // State variables
+    address public devAddress;
     uint256 public initialTokenPrice;
     uint256 public lotteryPool; // Target ETH to be collected
     uint256 public ethRaised; // Total ETH collected by the curve
@@ -53,14 +56,31 @@ contract BondingCurvePool is ERC20 {
     event LotteryPoolUpdated(uint256 newLotteryPool);
     event CurveParametersUpdated(uint256 virtualTokenRes, uint256 virtualEthRes, uint256 k);
     event LotteryTaxStatusChanged(bool isActive);
+    event RewardsDistributed(
+        address indexed winner,
+        uint256 lotteryReward,
+        uint256 protocolReward,
+        uint256 devReward
+    );
 
     constructor(
         string memory name,
         string memory symbol,
-        uint256 _initialLotteryPool
-    ) ERC20(name, symbol) {
-        require(_initialLotteryPool >= MIN_LOTTERY_POOL, "Lottery pool too small");
-        require(_initialLotteryPool <= MAX_LOTTERY_POOL, "Lottery pool too large");
+        uint256 _initialLotteryPool,
+        address _devAddress,
+        address initialOwner
+    ) ERC20(name, symbol) Ownable(initialOwner) {
+        require(_devAddress != address(0), "Dev address cannot be zero");
+        devAddress = _devAddress;
+
+        require(
+            _initialLotteryPool >= MIN_LOTTERY_POOL,
+            "Lottery pool too small"
+        );
+        require(
+            _initialLotteryPool <= MAX_LOTTERY_POOL,
+            "Lottery pool too large"
+        );
 
         lotteryPool = _initialLotteryPool;
         _mint(address(this), INITIAL_SUPPLY);
@@ -212,7 +232,45 @@ contract BondingCurvePool is ERC20 {
         emit LotteryPoolUpdated(lotteryPool);
     }
 
-    function isLotteryTargetMet() public view returns (bool) {
-        return accumulatedLotteryTax >= lotteryPool;
+    function distributeRewards(address winner) public onlyOwner {
+        require(winner != address(0), "Winner address cannot be zero");
+
+        // Readings from storage to memory
+        uint256 totalLotteryTax = accumulatedLotteryTax;
+        uint256 protocolTax = accumulatedProtocolTax;
+        uint256 devTax = accumulatedDevTax;
+
+        // Reset accumulated values in storage
+        accumulatedLotteryTax = 0;
+        accumulatedProtocolTax = 0;
+        accumulatedDevTax = 0;
+
+        // Calculations
+        uint256 winnerPrizeAmount;
+        uint256 remainderForProtocol = 0;
+
+        if (totalLotteryTax >= lotteryPool) {
+            // Target met or exceeded. Winner gets the fixed prize.
+            winnerPrizeAmount = lotteryPool;
+            remainderForProtocol = totalLotteryTax - lotteryPool;
+        } else {
+            // Target not met. Winner gets whatever has been collected.
+            winnerPrizeAmount = totalLotteryTax;
+        }
+
+        uint256 totalForProtocol = remainderForProtocol + protocolTax;
+
+        // Transfers
+        if (winnerPrizeAmount > 0) {
+            payable(winner).transfer(winnerPrizeAmount);
+        }
+        if (totalForProtocol > 0) {
+            payable(PROTOCOL_POOL_ADDRESS).transfer(totalForProtocol);
+        }
+        if (devTax > 0) {
+            payable(devAddress).transfer(devTax);
+        }
+
+        emit RewardsDistributed(winner, winnerPrizeAmount, totalForProtocol, devTax);
     }
 }
