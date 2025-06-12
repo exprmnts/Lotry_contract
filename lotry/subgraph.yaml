@@ -9,7 +9,7 @@ dataSources:
     name: TokenLaunchpad
     network: base-sepolia  # or your target network
     source:
-      address: '0xca46CdB15fa236099920D04F5af9e3f8271805Fc'  # Known address
+      address: '0x57b085301Ff9CF8cDe978759885BfB2fF935268a'  # Known address
       abi: TokenLaunchpad
       startBlock: 26931123
     mapping:
