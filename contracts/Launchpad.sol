@@ -28,8 +28,10 @@ contract TokenLaunchpad is Ownable {
     function launchToken(
         string memory name,
         string memory symbol,
-        uint256 initialLotteryPool
+        uint256 initialLotteryPool,
+        address devAddress
      ) public returns (address) {
+        BondingCurvePool newToken = new BondingCurvePool(name, symbol, initialLotteryPool, devAddress, msg.sender);
 
         TokenInfo memory tokenInfo = TokenInfo({
             tokenAddress: address(newToken),
