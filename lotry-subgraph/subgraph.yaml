@@ -22,8 +22,30 @@ dataSources:
         - name: TokenLaunchpad_json
           file: ./abis/TokenLaunchpad_json.json
       eventHandlers:
-        - event: OwnershipTransferred(indexed address,indexed address)
-          handler: handleOwnershipTransferred
         - event: TokenCreated(indexed address,string,string)
           handler: handleTokenCreated
       file: ./src/token-launchpad-json.ts
+templates:
+  - name: BondingCurvePool
+    kind: ethereum/contract
+    network: base-sepolia
+    source:
+      abi: BondingCurvePool
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      file: ./src/bonding-curve-pool.ts
+      entities:
+        - Token
+        - BuyEvent
+        - SellEvent
+        - Transaction
+      abis:
+        - name: BondingCurvePool
+          file: ./abis/BondingCurvePool.json
+      eventHandlers:
+        - event: BuyEvent(indexed address,indexed uint256,uint256)
+          handler: handleBuyEvent
+        - event: SellEvent(indexed address,indexed uint256,uint256)
+          handler: handleSellEvent
