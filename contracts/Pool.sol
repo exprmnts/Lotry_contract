@@ -55,11 +55,12 @@ contract BondingCurvePool is ERC20, Ownable {
     // event TokensSold(address indexed seller, uint256 amountTokens, uint256 amountEth);
     // event LotteryPoolUpdated(uint256 newLotteryPool);
     // event CurveParametersUpdated(uint256 virtualTokenRes, uint256 virtualEthRes, uint256 k);
-    // event LotteryTaxStatusChanged(bool isActive);
+    event LotteryTaxStatusChanged(bool isActive);
 
     // Events for buy and sell
     event BuyEvent(address indexed tokenAddress, uint256 indexed timestamp, uint256 ethPrice);
     event SellEvent(address indexed tokenAddress, uint256 indexed timestamp, uint256 ethPrice);
+    event RewardsDistributed(address indexed winner, uint256 winnerPrizeAmount, uint256 totalForProtocol, uint256 devTax);
 
     constructor(
         string memory name,
@@ -163,7 +164,7 @@ contract BondingCurvePool is ERC20, Ownable {
 
             if (accumulatedLotteryTax >= lotteryPool) {
                 isLotteryTaxActive = false;
-                //emit LotteryTaxStatusChanged(false);
+                emit LotteryTaxStatusChanged(false);
             }
         }
 

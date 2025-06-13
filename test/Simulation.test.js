@@ -20,10 +20,13 @@ describe("Market Simulation as a Test", function () {
     await launchpad.waitForDeployment();
 
     // Launch a new Pool using the Launchpad
-    const tx = await launchpad.launchToken(tokenName, tokenSymbol, initialLotteryPool);
+    const tx = await launchpad.launchToken(tokenName, tokenSymbol, initialLotteryPool, owner.address);
     const receipt = await tx.wait();
-    const event = receipt.logs.find(log => log.eventName === 'TokenCreated');
-    const poolAddress = event.args.tokenAddress;
+
+    const tokenCreatedEvent = receipt.logs.find(log => {
+      return log.eventName === 'TokenCreated';
+    });
+    const poolAddress = tokenCreatedEvent.args.tokenAddress;
 
     // Attach to the deployed pool contract
     const BondingCurvePool = await ethers.getContractFactory("BondingCurvePool");
