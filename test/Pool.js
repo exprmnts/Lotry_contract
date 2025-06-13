@@ -19,7 +19,7 @@ describe("Launchpad and Pool Integration Tests", function() {
     await launchpad.waitForDeployment();
 
     // Launch a new Pool using the Launchpad
-    const tx = await launchpad.launchToken(tokenName, tokenSymbol, initialLotteryPool);
+    const tx = await launchpad.launchToken(tokenName, tokenSymbol, initialLotteryPool, owner.address);
     const receipt = await tx.wait();
 
     // Find the TokenCreated event to get the new pool's address
