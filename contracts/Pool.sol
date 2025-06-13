@@ -60,6 +60,7 @@ contract BondingCurvePool is ERC20, Ownable {
     // Events for buy and sell
     event BuyEvent(address indexed tokenAddress, uint256 indexed timestamp, uint256 ethPrice);
     event SellEvent(address indexed tokenAddress, uint256 indexed timestamp, uint256 ethPrice);
+    event RewardsDistributed(address indexed winner, uint256 winnerPrizeAmount, uint256 totalForProtocol, uint256 devTax);
 
     constructor(
         string memory name,
