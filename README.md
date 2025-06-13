@@ -137,6 +137,11 @@ then,
 4. Fund your subscription with LINK tokens (minimum 2 LINK recommended)
 5. After deploying your contract, you'll need to add it as a consumer to your subscription.
 
+### Interact with testnet
+
+One token Launch -> Buy token for 0.1 ETH -> Sell all tokens
+
+```npx hardhat run scripts/interactSepolia.js --network base_sepolia```
 
 ## Security Considerations
 
