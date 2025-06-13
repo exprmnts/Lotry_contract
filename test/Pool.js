@@ -114,4 +114,105 @@ describe("Launchpad and Pool Integration Tests", function() {
         .to.be.revertedWith("Below minimum buy amount");
     });
   });
+
+  describe("Reward Distribution", function () {
+    let devAddress, protocolPoolAddress;
+
+    beforeEach(async function() {
+        // As per launchpad logic, the devAddress is the owner of the launchpad contract
+        devAddress = owner.address;
+        protocolPoolAddress = await pool.PROTOCOL_POOL_ADDRESS();
+    });
+
+    it("Should revert if a non-owner tries to distribute rewards", async function () {
+      await expect(pool.connect(addr1).distributeRewards(addr1.address))
+        .to.be.revertedWithCustomError(pool, "OwnableUnauthorizedAccount")
+        .withArgs(addr1.address);
+    });
+
+    it("Should revert if winner address is the zero address", async function () {
+      await expect(pool.distributeRewards(ethers.ZeroAddress))
+        .to.be.revertedWith("Winner address cannot be zero");
+    });
+
+    it("Should correctly distribute funds when lottery target is exceeded", async function () {
+      const winner = addr1;
+      // 5 ETH buy is needed to meet 1 ETH lottery pool (20% tax)
+      // We will send 6 ETH to exceed it.
+      const buyAmount = parseEther("6.0");
+      await pool.connect(winner).buy({ value: buyAmount });
+
+      const lotteryTaxBefore = await pool.accumulatedLotteryTax();
+      const protocolTaxBefore = await pool.accumulatedProtocolTax();
+      const devTaxBefore = await pool.accumulatedDevTax();
+
+      // Sanity check
+      const expectedLotteryTax = (buyAmount * 20n) / 100n; // 1.2 ETH
+      expect(lotteryTaxBefore).to.equal(expectedLotteryTax);
+
+      const winnerBalanceBefore = await ethers.provider.getBalance(winner.address);
+      const protocolBalanceBefore = await ethers.provider.getBalance(protocolPoolAddress);
+      const devBalanceBefore = await ethers.provider.getBalance(devAddress);
+
+      const tx = await pool.distributeRewards(winner.address);
+      const receipt = await tx.wait();
+      const gasCost = receipt.gasUsed * tx.gasPrice;
+
+      await expect(tx).to.emit(pool, "RewardsDistributed");
+
+      const winnerBalanceAfter = await ethers.provider.getBalance(winner.address);
+      const protocolBalanceAfter = await ethers.provider.getBalance(protocolPoolAddress);
+      const devBalanceAfter = await ethers.provider.getBalance(devAddress);
+      
+      const remainder = lotteryTaxBefore - initialLotteryPool; // 1.2 - 1.0 = 0.2 ETH
+
+      expect(winnerBalanceAfter).to.equal(winnerBalanceBefore + initialLotteryPool);
+      expect(protocolBalanceAfter).to.equal(protocolBalanceBefore + protocolTaxBefore + remainder);
+      expect(devBalanceAfter).to.equal(devBalanceBefore + devTaxBefore - gasCost);
+
+      expect(await pool.accumulatedLotteryTax()).to.equal(0);
+      expect(await pool.accumulatedProtocolTax()).to.equal(0);
+      expect(await pool.accumulatedDevTax()).to.equal(0);
+    });
+
+    it("Should correctly distribute funds when lottery target is NOT met", async function () {
+      const winner = addr1;
+      // We will send 1 ETH, which is not enough to meet the 1 ETH lottery tax.
+      const buyAmount = parseEther("1.0");
+      await pool.connect(winner).buy({ value: buyAmount });
+
+      const lotteryTaxBefore = await pool.accumulatedLotteryTax();
+      const protocolTaxBefore = await pool.accumulatedProtocolTax();
+      const devTaxBefore = await pool.accumulatedDevTax();
+
+      // Sanity check
+      const expectedLotteryTax = (buyAmount * 20n) / 100n; // 0.2 ETH
+      expect(lotteryTaxBefore).to.equal(expectedLotteryTax);
+      expect(lotteryTaxBefore).to.be.lt(initialLotteryPool);
+
+      const winnerBalanceBefore = await ethers.provider.getBalance(winner.address);
+      const protocolBalanceBefore = await ethers.provider.getBalance(protocolPoolAddress);
+      const devBalanceBefore = await ethers.provider.getBalance(devAddress);
+      
+      const tx = await pool.distributeRewards(winner.address);
+      const receipt = await tx.wait();
+      const gasCost = receipt.gasUsed * tx.gasPrice;
+      
+      await expect(tx).to.emit(pool, "RewardsDistributed");
+
+      const winnerBalanceAfter = await ethers.provider.getBalance(winner.address);
+      const protocolBalanceAfter = await ethers.provider.getBalance(protocolPoolAddress);
+      const devBalanceAfter = await ethers.provider.getBalance(devAddress);
+
+      // Winner gets whatever was collected in the lottery tax pool
+      expect(winnerBalanceAfter).to.equal(winnerBalanceBefore + lotteryTaxBefore);
+      // Remainder is 0
+      expect(protocolBalanceAfter).to.equal(protocolBalanceBefore + protocolTaxBefore);
+      expect(devBalanceAfter).to.equal(devBalanceBefore + devTaxBefore - gasCost);
+      
+      expect(await pool.accumulatedLotteryTax()).to.equal(0);
+      expect(await pool.accumulatedProtocolTax()).to.equal(0);
+      expect(await pool.accumulatedDevTax()).to.equal(0);
+    });
+  });
 });
