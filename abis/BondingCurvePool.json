@@ -368,6 +368,19 @@
   },
   {
     "inputs": [],
+    "name": "REWARD_DISTRIBUTOR",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "accumulatedDevTax",
     "outputs": [
       {
