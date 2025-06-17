@@ -3,7 +3,7 @@ const { expect } = require("chai");
 
 async function main() {
   // Replace with your deployed contract address
-  const CONTRACT_ADDRESS = "0xca46CdB15fa236099920D04F5af9e3f8271805Fc";
+  const CONTRACT_ADDRESS = "0x38eade322F5dE73DC5bc553528bC51ae15FAee1D";
 
   console.log("Interacting with Counter contract on Sepolia...");
   console.log("Contract Address:", CONTRACT_ADDRESS);
@@ -25,7 +25,7 @@ async function main() {
     console.log("----LauchToken----");
 
     // Launch a new Pool using the Launchpad
-    let tx = await launchpad.launchToken(tokenName, tokenSymbol, initialLotteryPool);
+    let tx = await launchpad.launchToken(tokenName, tokenSymbol, initialLotteryPool, signer.address);
     const receipt = await tx.wait();
 
     // Method 1: Parse events from transaction receipt
