@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
@@ -5,13 +6,28 @@ const parseEther = ethers.parseEther;
 
 describe("Launchpad and Pool Integration Tests", function() {
   this.timeout(60000); // 1 minute timeout
-  let launchpad, pool, owner, addr1;
+  let launchpad, pool, owner, addr1, rewardDistributor;
   const tokenName = "My Test Token";
   const tokenSymbol = "MTT";
   const initialLotteryPool = parseEther("1.0");
 
   beforeEach(async function() {
     [owner, addr1] = await ethers.getSigners();
+
+    if (process.env.PRIVATE_KEY) {
+        rewardDistributor = new ethers.Wallet(process.env.PRIVATE_KEY, ethers.provider);
+        const expectedDistributorAddress = "0xC43389A2B7eB3e5540FDC734dA7205A215551d01";
+        if (rewardDistributor.address.toLowerCase() !== expectedDistributorAddress.toLowerCase()) {
+            console.warn(`Warning: Private key in .env does not correspond to the hardcoded REWARD_DISTRIBUTOR address. Expected ${expectedDistributorAddress}, got ${rewardDistributor.address}`);
+        }
+        // Fund the reward distributor account
+        await owner.sendTransaction({
+            to: rewardDistributor.address,
+            value: parseEther("10.0") // Send 10 ETH for gas
+        });
+    } else {
+        console.warn("PRIVATE_KEY not found in .env, skipping reward distribution tests that require it.");
+    }
 
     // Deploy Launchpad
     const TokenLaunchpad = await ethers.getContractFactory("TokenLaunchpad");
@@ -124,18 +140,19 @@ describe("Launchpad and Pool Integration Tests", function() {
         protocolPoolAddress = await pool.PROTOCOL_POOL_ADDRESS();
     });
 
-    it("Should revert if a non-owner tries to distribute rewards", async function () {
+    it("Should revert if a non-authorized user tries to distribute rewards", async function () {
       await expect(pool.connect(addr1).distributeRewards(addr1.address))
-        .to.be.revertedWithCustomError(pool, "OwnableUnauthorizedAccount")
-        .withArgs(addr1.address);
+        .to.be.revertedWith("Caller is not the reward distributor");
     });
 
     it("Should revert if winner address is the zero address", async function () {
-      await expect(pool.distributeRewards(ethers.ZeroAddress))
+      if (!rewardDistributor) this.skip();
+      await expect(pool.connect(rewardDistributor).distributeRewards(ethers.ZeroAddress))
         .to.be.revertedWith("Winner address cannot be zero");
     });
 
     it("Should correctly distribute funds when lottery target is exceeded", async function () {
+      if (!rewardDistributor) this.skip();
       const winner = addr1;
       // 5 ETH buy is needed to meet 1 ETH lottery pool (20% tax)
       // We will send 6 ETH to exceed it.
@@ -154,10 +171,7 @@ describe("Launchpad and Pool Integration Tests", function() {
       const protocolBalanceBefore = await ethers.provider.getBalance(protocolPoolAddress);
       const devBalanceBefore = await ethers.provider.getBalance(devAddress);
 
-      const tx = await pool.distributeRewards(winner.address);
-      const receipt = await tx.wait();
-      const gasCost = receipt.gasUsed * tx.gasPrice;
-
+      const tx = await pool.connect(rewardDistributor).distributeRewards(winner.address);
       await expect(tx).to.emit(pool, "RewardsDistributed");
 
       const winnerBalanceAfter = await ethers.provider.getBalance(winner.address);
@@ -168,7 +182,7 @@ describe("Launchpad and Pool Integration Tests", function() {
 
       expect(winnerBalanceAfter).to.equal(winnerBalanceBefore + initialLotteryPool);
       expect(protocolBalanceAfter).to.equal(protocolBalanceBefore + protocolTaxBefore + remainder);
-      expect(devBalanceAfter).to.equal(devBalanceBefore + devTaxBefore - gasCost);
+      expect(devBalanceAfter).to.equal(devBalanceBefore + devTaxBefore);
 
       expect(await pool.accumulatedLotteryTax()).to.equal(0);
       expect(await pool.accumulatedProtocolTax()).to.equal(0);
@@ -176,6 +190,7 @@ describe("Launchpad and Pool Integration Tests", function() {
     });
 
     it("Should correctly distribute funds when lottery target is NOT met", async function () {
+      if (!rewardDistributor) this.skip();
       const winner = addr1;
       // We will send 1 ETH, which is not enough to meet the 1 ETH lottery tax.
       const buyAmount = parseEther("1.0");
@@ -194,10 +209,7 @@ describe("Launchpad and Pool Integration Tests", function() {
       const protocolBalanceBefore = await ethers.provider.getBalance(protocolPoolAddress);
       const devBalanceBefore = await ethers.provider.getBalance(devAddress);
       
-      const tx = await pool.distributeRewards(winner.address);
-      const receipt = await tx.wait();
-      const gasCost = receipt.gasUsed * tx.gasPrice;
-      
+      const tx = await pool.connect(rewardDistributor).distributeRewards(winner.address);
       await expect(tx).to.emit(pool, "RewardsDistributed");
 
       const winnerBalanceAfter = await ethers.provider.getBalance(winner.address);
@@ -208,7 +220,7 @@ describe("Launchpad and Pool Integration Tests", function() {
       expect(winnerBalanceAfter).to.equal(winnerBalanceBefore + lotteryTaxBefore);
       // Remainder is 0
       expect(protocolBalanceAfter).to.equal(protocolBalanceBefore + protocolTaxBefore);
-      expect(devBalanceAfter).to.equal(devBalanceBefore + devTaxBefore - gasCost);
+      expect(devBalanceAfter).to.equal(devBalanceBefore + devTaxBefore);
       
       expect(await pool.accumulatedLotteryTax()).to.equal(0);
       expect(await pool.accumulatedProtocolTax()).to.equal(0);
