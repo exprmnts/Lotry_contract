@@ -1,23 +1,19 @@
 import {
   Approval as ApprovalEvent,
   BuyEvent as BuyEventEvent,
-  CurveParametersUpdated as CurveParametersUpdatedEvent,
-  LotteryPoolUpdated as LotteryPoolUpdatedEvent,
   LotteryTaxStatusChanged as LotteryTaxStatusChangedEvent,
+  OwnershipTransferred as OwnershipTransferredEvent,
+  RewardsDistributed as RewardsDistributedEvent,
   SellEvent as SellEventEvent,
-  TokensPurchased as TokensPurchasedEvent,
-  TokensSold as TokensSoldEvent,
   Transfer as TransferEvent,
 } from "../generated/BondingCurvePool/BondingCurvePool"
 import {
   Approval,
   BuyEvent,
-  CurveParametersUpdated,
-  LotteryPoolUpdated,
   LotteryTaxStatusChanged,
+  OwnershipTransferred,
+  RewardsDistributed,
   SellEvent,
-  TokensPurchased,
-  TokensSold,
   Transfer,
 } from "../generated/schema"
 
@@ -51,36 +47,6 @@ export function handleBuyEvent(event: BuyEventEvent): void {
   entity.save()
 }
 
-export function handleCurveParametersUpdated(
-  event: CurveParametersUpdatedEvent,
-): void {
-  let entity = new CurveParametersUpdated(
-    event.transaction.hash.concatI32(event.logIndex.toI32()),
-  )
-  entity.virtualTokenRes = event.params.virtualTokenRes
-  entity.virtualEthRes = event.params.virtualEthRes
-  entity.k = event.params.k
-
-  entity.blockNumber = event.block.number
-  entity.blockTimestamp = event.block.timestamp
-  entity.transactionHash = event.transaction.hash
-
-  entity.save()
-}
-
-export function handleLotteryPoolUpdated(event: LotteryPoolUpdatedEvent): void {
-  let entity = new LotteryPoolUpdated(
-    event.transaction.hash.concatI32(event.logIndex.toI32()),
-  )
-  entity.newLotteryPool = event.params.newLotteryPool
-
-  entity.blockNumber = event.block.number
-  entity.blockTimestamp = event.block.timestamp
-  entity.transactionHash = event.transaction.hash
-
-  entity.save()
-}
-
 export function handleLotteryTaxStatusChanged(
   event: LotteryTaxStatusChangedEvent,
 ): void {
@@ -96,6 +62,38 @@ export function handleLotteryTaxStatusChanged(
   entity.save()
 }
 
+export function handleOwnershipTransferred(
+  event: OwnershipTransferredEvent,
+): void {
+  let entity = new OwnershipTransferred(
+    event.transaction.hash.concatI32(event.logIndex.toI32()),
+  )
+  entity.previousOwner = event.params.previousOwner
+  entity.newOwner = event.params.newOwner
+
+  entity.blockNumber = event.block.number
+  entity.blockTimestamp = event.block.timestamp
+  entity.transactionHash = event.transaction.hash
+
+  entity.save()
+}
+
+export function handleRewardsDistributed(event: RewardsDistributedEvent): void {
+  let entity = new RewardsDistributed(
+    event.transaction.hash.concatI32(event.logIndex.toI32()),
+  )
+  entity.winner = event.params.winner
+  entity.winnerPrizeAmount = event.params.winnerPrizeAmount
+  entity.totalForProtocol = event.params.totalForProtocol
+  entity.devTax = event.params.devTax
+
+  entity.blockNumber = event.block.number
+  entity.blockTimestamp = event.block.timestamp
+  entity.transactionHash = event.transaction.hash
+
+  entity.save()
+}
+
 export function handleSellEvent(event: SellEventEvent): void {
   let entity = new SellEvent(
     event.transaction.hash.concatI32(event.logIndex.toI32()),
@@ -103,38 +101,6 @@ export function handleSellEvent(event: SellEventEvent): void {
   entity.tokenAddress = event.params.tokenAddress
   entity.timestamp = event.params.timestamp
   entity.ethPrice = event.params.ethPrice
-
-  entity.blockNumber = event.block.number
-  entity.blockTimestamp = event.block.timestamp
-  entity.transactionHash = event.transaction.hash
-
-  entity.save()
-}
-
-export function handleTokensPurchased(event: TokensPurchasedEvent): void {
-  let entity = new TokensPurchased(
-    event.transaction.hash.concatI32(event.logIndex.toI32()),
-  )
-  entity.buyer = event.params.buyer
-  entity.grossEthAmount = event.params.grossEthAmount
-  entity.netEthForCurve = event.params.netEthForCurve
-  entity.tokensReceived = event.params.tokensReceived
-  entity.lotteryFeeApplied = event.params.lotteryFeeApplied
-
-  entity.blockNumber = event.block.number
-  entity.blockTimestamp = event.block.timestamp
-  entity.transactionHash = event.transaction.hash
-
-  entity.save()
-}
-
-export function handleTokensSold(event: TokensSoldEvent): void {
-  let entity = new TokensSold(
-    event.transaction.hash.concatI32(event.logIndex.toI32()),
-  )
-  entity.seller = event.params.seller
-  entity.amountTokens = event.params.amountTokens
-  entity.amountEth = event.params.amountEth
 
   entity.blockNumber = event.block.number
   entity.blockTimestamp = event.block.timestamp

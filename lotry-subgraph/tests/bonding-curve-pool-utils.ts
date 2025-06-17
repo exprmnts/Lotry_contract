@@ -3,12 +3,10 @@ import { ethereum, Address, BigInt } from "@graphprotocol/graph-ts"
 import {
   Approval,
   BuyEvent,
-  CurveParametersUpdated,
-  LotteryPoolUpdated,
   LotteryTaxStatusChanged,
+  OwnershipTransferred,
+  RewardsDistributed,
   SellEvent,
-  TokensPurchased,
-  TokensSold,
   Transfer
 } from "../generated/BondingCurvePool/BondingCurvePool"
 
@@ -65,52 +63,6 @@ export function createBuyEventEvent(
   return buyEventEvent
 }
 
-export function createCurveParametersUpdatedEvent(
-  virtualTokenRes: BigInt,
-  virtualEthRes: BigInt,
-  k: BigInt
-): CurveParametersUpdated {
-  let curveParametersUpdatedEvent =
-    changetype<CurveParametersUpdated>(newMockEvent())
-
-  curveParametersUpdatedEvent.parameters = new Array()
-
-  curveParametersUpdatedEvent.parameters.push(
-    new ethereum.EventParam(
-      "virtualTokenRes",
-      ethereum.Value.fromUnsignedBigInt(virtualTokenRes)
-    )
-  )
-  curveParametersUpdatedEvent.parameters.push(
-    new ethereum.EventParam(
-      "virtualEthRes",
-      ethereum.Value.fromUnsignedBigInt(virtualEthRes)
-    )
-  )
-  curveParametersUpdatedEvent.parameters.push(
-    new ethereum.EventParam("k", ethereum.Value.fromUnsignedBigInt(k))
-  )
-
-  return curveParametersUpdatedEvent
-}
-
-export function createLotteryPoolUpdatedEvent(
-  newLotteryPool: BigInt
-): LotteryPoolUpdated {
-  let lotteryPoolUpdatedEvent = changetype<LotteryPoolUpdated>(newMockEvent())
-
-  lotteryPoolUpdatedEvent.parameters = new Array()
-
-  lotteryPoolUpdatedEvent.parameters.push(
-    new ethereum.EventParam(
-      "newLotteryPool",
-      ethereum.Value.fromUnsignedBigInt(newLotteryPool)
-    )
-  )
-
-  return lotteryPoolUpdatedEvent
-}
-
 export function createLotteryTaxStatusChangedEvent(
   isActive: boolean
 ): LotteryTaxStatusChanged {
@@ -124,6 +76,60 @@ export function createLotteryTaxStatusChangedEvent(
   )
 
   return lotteryTaxStatusChangedEvent
+}
+
+export function createOwnershipTransferredEvent(
+  previousOwner: Address,
+  newOwner: Address
+): OwnershipTransferred {
+  let ownershipTransferredEvent =
+    changetype<OwnershipTransferred>(newMockEvent())
+
+  ownershipTransferredEvent.parameters = new Array()
+
+  ownershipTransferredEvent.parameters.push(
+    new ethereum.EventParam(
+      "previousOwner",
+      ethereum.Value.fromAddress(previousOwner)
+    )
+  )
+  ownershipTransferredEvent.parameters.push(
+    new ethereum.EventParam("newOwner", ethereum.Value.fromAddress(newOwner))
+  )
+
+  return ownershipTransferredEvent
+}
+
+export function createRewardsDistributedEvent(
+  winner: Address,
+  winnerPrizeAmount: BigInt,
+  totalForProtocol: BigInt,
+  devTax: BigInt
+): RewardsDistributed {
+  let rewardsDistributedEvent = changetype<RewardsDistributed>(newMockEvent())
+
+  rewardsDistributedEvent.parameters = new Array()
+
+  rewardsDistributedEvent.parameters.push(
+    new ethereum.EventParam("winner", ethereum.Value.fromAddress(winner))
+  )
+  rewardsDistributedEvent.parameters.push(
+    new ethereum.EventParam(
+      "winnerPrizeAmount",
+      ethereum.Value.fromUnsignedBigInt(winnerPrizeAmount)
+    )
+  )
+  rewardsDistributedEvent.parameters.push(
+    new ethereum.EventParam(
+      "totalForProtocol",
+      ethereum.Value.fromUnsignedBigInt(totalForProtocol)
+    )
+  )
+  rewardsDistributedEvent.parameters.push(
+    new ethereum.EventParam("devTax", ethereum.Value.fromUnsignedBigInt(devTax))
+  )
+
+  return rewardsDistributedEvent
 }
 
 export function createSellEventEvent(
@@ -155,76 +161,6 @@ export function createSellEventEvent(
   )
 
   return sellEventEvent
-}
-
-export function createTokensPurchasedEvent(
-  buyer: Address,
-  grossEthAmount: BigInt,
-  netEthForCurve: BigInt,
-  tokensReceived: BigInt,
-  lotteryFeeApplied: BigInt
-): TokensPurchased {
-  let tokensPurchasedEvent = changetype<TokensPurchased>(newMockEvent())
-
-  tokensPurchasedEvent.parameters = new Array()
-
-  tokensPurchasedEvent.parameters.push(
-    new ethereum.EventParam("buyer", ethereum.Value.fromAddress(buyer))
-  )
-  tokensPurchasedEvent.parameters.push(
-    new ethereum.EventParam(
-      "grossEthAmount",
-      ethereum.Value.fromUnsignedBigInt(grossEthAmount)
-    )
-  )
-  tokensPurchasedEvent.parameters.push(
-    new ethereum.EventParam(
-      "netEthForCurve",
-      ethereum.Value.fromUnsignedBigInt(netEthForCurve)
-    )
-  )
-  tokensPurchasedEvent.parameters.push(
-    new ethereum.EventParam(
-      "tokensReceived",
-      ethereum.Value.fromUnsignedBigInt(tokensReceived)
-    )
-  )
-  tokensPurchasedEvent.parameters.push(
-    new ethereum.EventParam(
-      "lotteryFeeApplied",
-      ethereum.Value.fromUnsignedBigInt(lotteryFeeApplied)
-    )
-  )
-
-  return tokensPurchasedEvent
-}
-
-export function createTokensSoldEvent(
-  seller: Address,
-  amountTokens: BigInt,
-  amountEth: BigInt
-): TokensSold {
-  let tokensSoldEvent = changetype<TokensSold>(newMockEvent())
-
-  tokensSoldEvent.parameters = new Array()
-
-  tokensSoldEvent.parameters.push(
-    new ethereum.EventParam("seller", ethereum.Value.fromAddress(seller))
-  )
-  tokensSoldEvent.parameters.push(
-    new ethereum.EventParam(
-      "amountTokens",
-      ethereum.Value.fromUnsignedBigInt(amountTokens)
-    )
-  )
-  tokensSoldEvent.parameters.push(
-    new ethereum.EventParam(
-      "amountEth",
-      ethereum.Value.fromUnsignedBigInt(amountEth)
-    )
-  )
-
-  return tokensSoldEvent
 }
 
 export function createTransferEvent(
