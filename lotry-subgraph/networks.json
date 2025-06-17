@@ -1,0 +1,8 @@
+{
+  "base-sepolia": {
+    "TokenLaunchpad": {
+      "address": "0x6030Ed6cfF96C169183E1036E5B7FB0408c37E3d",
+      "startBlock": 27166507
+    }
+  }
+}
