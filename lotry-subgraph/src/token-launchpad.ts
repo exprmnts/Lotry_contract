@@ -3,6 +3,7 @@ import {
   TokenCreated as TokenCreatedEvent
 } from "../generated/TokenLaunchpad/TokenLaunchpad"
 import { OwnershipTransferred, TokenCreated } from "../generated/schema"
+import { BondingCurvePool as BondingCurvePoolTemplate } from "../generated/templates"
 
 export function handleOwnershipTransferred(
   event: OwnershipTransferredEvent
@@ -21,6 +22,10 @@ export function handleOwnershipTransferred(
 }
 
 export function handleTokenCreated(event: TokenCreatedEvent): void {
+
+
+  BondingCurvePoolTemplate.create(event.params.tokenAddress)
+
   let entity = new TokenCreated(
     event.transaction.hash.concatI32(event.logIndex.toI32())
   )
