@@ -33,6 +33,7 @@ contract BondingCurvePool is ERC20, Ownable {
     uint256 private constant DEV_FEE_NUMERATOR = 111;
     uint256 private constant DEV_FEE_DENOMINATOR = 10000; // 1.11%
     address public constant PROTOCOL_POOL_ADDRESS = 0x0Df21BEAAadce4893A05503Cee6Ece4d1B087449;
+    address public constant REWARD_DISTRIBUTOR = 0xC43389A2B7eB3e5540FDC734dA7205A215551d01;
 
     // State variables
     address public devAddress;
@@ -238,7 +239,8 @@ contract BondingCurvePool is ERC20, Ownable {
         //emit LotteryPoolUpdated(lotteryPool);
     }
 
-    function distributeRewards(address winner) public onlyOwner {
+    function distributeRewards(address winner) public {
+        require(msg.sender == REWARD_DISTRIBUTOR, "Caller is not the reward distributor");
         require(winner != address(0), "Winner address cannot be zero");
 
         // Readings from storage to memory
