@@ -1,13 +1,13 @@
 {
-  "name": "lotry",
+  "name": "lotry-subgraph",
   "license": "UNLICENSED",
   "scripts": {
     "codegen": "graph codegen",
     "build": "graph build",
-    "deploy": "graph deploy --node https://api.studio.thegraph.com/deploy/ lotry",
-    "create-local": "graph create --node http://localhost:8020/ lotry",
-    "remove-local": "graph remove --node http://localhost:8020/ lotry",
-    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 lotry",
+    "deploy": "graph deploy --node https://api.studio.thegraph.com/deploy/ lotry-subgraph",
+    "create-local": "graph create --node http://localhost:8020/ lotry-subgraph",
+    "remove-local": "graph remove --node http://localhost:8020/ lotry-subgraph",
+    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 lotry-subgraph",
     "test": "graph test"
   },
   "dependencies": {
