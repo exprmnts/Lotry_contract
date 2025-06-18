@@ -27,3 +27,23 @@ dataSources:
         - event: TokenCreated(indexed address,string,string)
           handler: handleTokenCreated
       file: ./src/token-launchpad.ts
+templates:
+  - name: BondingCurvePool
+    kind: ethereum/contract
+    network: base-sepolia
+    source:
+      abi: BondingCurvePool
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      file: ./src/bonding-curvepool.ts
+      entities:
+        - TradeEvent
+      abis:
+        - name: BondingCurvePool
+          file: ./abis/BondingCurvePool.json
+      eventHandlers:
+        - event: TradeEvent(indexed address,uint256)
+          handler: handleTradeEvent
+
