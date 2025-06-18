@@ -2,13 +2,12 @@ import { newMockEvent } from "matchstick-as"
 import { ethereum, Address, BigInt } from "@graphprotocol/graph-ts"
 import {
   Approval,
-  BuyEvent,
   LotteryTaxStatusChanged,
   OwnershipTransferred,
   RewardsDistributed,
-  SellEvent,
+  TradeEvent,
   Transfer
-} from "../generated/BondingCurvePool/BondingCurvePool"
+} from "../generated/BondingCurvepool/BondingCurvepool"
 
 export function createApprovalEvent(
   owner: Address,
@@ -30,37 +29,6 @@ export function createApprovalEvent(
   )
 
   return approvalEvent
-}
-
-export function createBuyEventEvent(
-  tokenAddress: Address,
-  timestamp: BigInt,
-  ethPrice: BigInt
-): BuyEvent {
-  let buyEventEvent = changetype<BuyEvent>(newMockEvent())
-
-  buyEventEvent.parameters = new Array()
-
-  buyEventEvent.parameters.push(
-    new ethereum.EventParam(
-      "tokenAddress",
-      ethereum.Value.fromAddress(tokenAddress)
-    )
-  )
-  buyEventEvent.parameters.push(
-    new ethereum.EventParam(
-      "timestamp",
-      ethereum.Value.fromUnsignedBigInt(timestamp)
-    )
-  )
-  buyEventEvent.parameters.push(
-    new ethereum.EventParam(
-      "ethPrice",
-      ethereum.Value.fromUnsignedBigInt(ethPrice)
-    )
-  )
-
-  return buyEventEvent
 }
 
 export function createLotteryTaxStatusChangedEvent(
@@ -132,35 +100,28 @@ export function createRewardsDistributedEvent(
   return rewardsDistributedEvent
 }
 
-export function createSellEventEvent(
+export function createTradeEventEvent(
   tokenAddress: Address,
-  timestamp: BigInt,
   ethPrice: BigInt
-): SellEvent {
-  let sellEventEvent = changetype<SellEvent>(newMockEvent())
+): TradeEvent {
+  let tradeEventEvent = changetype<TradeEvent>(newMockEvent())
 
-  sellEventEvent.parameters = new Array()
+  tradeEventEvent.parameters = new Array()
 
-  sellEventEvent.parameters.push(
+  tradeEventEvent.parameters.push(
     new ethereum.EventParam(
       "tokenAddress",
       ethereum.Value.fromAddress(tokenAddress)
     )
   )
-  sellEventEvent.parameters.push(
-    new ethereum.EventParam(
-      "timestamp",
-      ethereum.Value.fromUnsignedBigInt(timestamp)
-    )
-  )
-  sellEventEvent.parameters.push(
+  tradeEventEvent.parameters.push(
     new ethereum.EventParam(
       "ethPrice",
       ethereum.Value.fromUnsignedBigInt(ethPrice)
     )
   )
 
-  return sellEventEvent
+  return tradeEventEvent
 }
 
 export function createTransferEvent(
