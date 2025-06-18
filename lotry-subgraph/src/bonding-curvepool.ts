@@ -1,19 +1,17 @@
 import {
   Approval as ApprovalEvent,
-  BuyEvent as BuyEventEvent,
   LotteryTaxStatusChanged as LotteryTaxStatusChangedEvent,
   OwnershipTransferred as OwnershipTransferredEvent,
   RewardsDistributed as RewardsDistributedEvent,
-  SellEvent as SellEventEvent,
+  TradeEvent as TradeEventEvent,
   Transfer as TransferEvent,
-} from "../generated/BondingCurvePool/BondingCurvePool"
+} from "../generated/BondingCurvepool/BondingCurvepool"
 import {
   Approval,
-  BuyEvent,
   LotteryTaxStatusChanged,
   OwnershipTransferred,
   RewardsDistributed,
-  SellEvent,
+  TradeEvent,
   Transfer,
 } from "../generated/schema"
 
@@ -24,21 +22,6 @@ export function handleApproval(event: ApprovalEvent): void {
   entity.owner = event.params.owner
   entity.spender = event.params.spender
   entity.value = event.params.value
-
-  entity.blockNumber = event.block.number
-  entity.blockTimestamp = event.block.timestamp
-  entity.transactionHash = event.transaction.hash
-
-  entity.save()
-}
-
-export function handleBuyEvent(event: BuyEventEvent): void {
-  let entity = new BuyEvent(
-    event.transaction.hash.concatI32(event.logIndex.toI32()),
-  )
-  entity.tokenAddress = event.params.tokenAddress
-  entity.timestamp = event.params.timestamp
-  entity.ethPrice = event.params.ethPrice
 
   entity.blockNumber = event.block.number
   entity.blockTimestamp = event.block.timestamp
@@ -94,12 +77,11 @@ export function handleRewardsDistributed(event: RewardsDistributedEvent): void {
   entity.save()
 }
 
-export function handleSellEvent(event: SellEventEvent): void {
-  let entity = new SellEvent(
+export function handleTradeEvent(event: TradeEventEvent): void {
+  let entity = new TradeEvent(
     event.transaction.hash.concatI32(event.logIndex.toI32()),
   )
   entity.tokenAddress = event.params.tokenAddress
-  entity.timestamp = event.params.timestamp
   entity.ethPrice = event.params.ethPrice
 
   entity.blockNumber = event.block.number

@@ -8,9 +8,9 @@ import {
 } from "matchstick-as/assembly/index"
 import { Address, BigInt } from "@graphprotocol/graph-ts"
 import { Approval } from "../generated/schema"
-import { Approval as ApprovalEvent } from "../generated/BondingCurvePool/BondingCurvePool"
-import { handleApproval } from "../src/bonding-curve-pool"
-import { createApprovalEvent } from "./bonding-curve-pool-utils"
+import { Approval as ApprovalEvent } from "../generated/BondingCurvepool/BondingCurvepool"
+import { handleApproval } from "../src/bonding-curvepool"
+import { createApprovalEvent } from "./bonding-curvepool-utils"
 
 // Tests structure (matchstick-as >=0.5.0)
 // https://thegraph.com/docs/en/subgraphs/developing/creating/unit-testing-framework/#tests-structure

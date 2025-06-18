@@ -26,16 +26,6 @@ type Approval @entity(immutable: true) {
   transactionHash: Bytes!
 }
 
-type BuyEvent @entity(immutable: true) {
-  id: Bytes!
-  tokenAddress: Bytes! # address
-  timestamp: BigInt! # uint256
-  ethPrice: BigInt! # uint256
-  blockNumber: BigInt!
-  blockTimestamp: BigInt!
-  transactionHash: Bytes!
-}
-
 type LotteryTaxStatusChanged @entity(immutable: true) {
   id: Bytes!
   isActive: Boolean! # bool
@@ -44,7 +34,7 @@ type LotteryTaxStatusChanged @entity(immutable: true) {
   transactionHash: Bytes!
 }
 
-type BondingCurvePoolOwnershipTransferred @entity(immutable: true) {
+type BondingCurvepoolOwnershipTransferred @entity(immutable: true) {
   id: Bytes!
   previousOwner: Bytes! # address
   newOwner: Bytes! # address
@@ -64,10 +54,9 @@ type RewardsDistributed @entity(immutable: true) {
   transactionHash: Bytes!
 }
 
-type SellEvent @entity(immutable: true) {
+type TradeEvent @entity(immutable: true) {
   id: Bytes!
   tokenAddress: Bytes! # address
-  timestamp: BigInt! # uint256
   ethPrice: BigInt! # uint256
   blockNumber: BigInt!
   blockTimestamp: BigInt!
