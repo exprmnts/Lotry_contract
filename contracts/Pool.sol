@@ -21,9 +21,9 @@ contract BondingCurvePool is ERC20, Ownable {
     uint256 private constant ONE_ETHER = 1e18; // For precision in calculations
 
     // Fee Structure Constants (Numerators and Denominators for percentage calculations)
-    // Tax rate for initial price calculation: 22.22%
-    uint256 private constant TAX_RATE_NUMERATOR = 2222;
-    uint256 private constant TAX_RATE_DENOMINATOR = 10000; // 22.22%
+    // Tax rate for initial price calculation: 20%
+    uint256 private constant TAX_RATE_NUMERATOR = 20;
+    uint256 private constant TAX_RATE_DENOMINATOR = 100; // 20%
 
     uint256 private constant PRE_GRADUATION_TAX_NUMERATOR = 20;
     uint256 private constant POST_GRADUATION_SELL_TAX_NUMERATOR = 5;
