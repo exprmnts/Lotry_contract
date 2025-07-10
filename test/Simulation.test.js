@@ -11,7 +11,7 @@ describe("Market Simulation as a Test", function () {
     const tokenName = "Simulation Token";
     const tokenSymbol = "SIM";
     const initialLotteryPool = ethers.parseEther("1.0");
-    const ethToUsdRate = 2496.30;
+    const ethToUsdRate = 2795.68;
 
     console.log("\n  Deploying contracts to create a new token with a 1 ETH lottery pool...");
     // Deploy Launchpad
@@ -20,7 +20,7 @@ describe("Market Simulation as a Test", function () {
     await launchpad.waitForDeployment();
 
     // Launch a new Pool using the Launchpad
-    const tx = await launchpad.launchToken(tokenName, tokenSymbol, initialLotteryPool, owner.address);
+    const tx = await launchpad.launchToken(tokenName, tokenSymbol, initialLotteryPool);
     const receipt = await tx.wait();
 
     const tokenCreatedEvent = receipt.logs.find(log => {
@@ -37,9 +37,9 @@ describe("Market Simulation as a Test", function () {
 
     // --- Initial State Logging ---
     // Note: The liquidity pool is a conceptual value calculated in the constructor.
-    // We replicate the calculation here for display purposes, using the known tax rate of 22.22%.
-    const TAX_RATE_NUMERATOR = 2222n;
-    const TAX_RATE_DENOMINATOR = 10000n;
+    // We replicate the calculation here for display purposes, using the known tax rate of 20%.
+    const TAX_RATE_NUMERATOR = 20n;
+    const TAX_RATE_DENOMINATOR = 100n;
     const liquidityPool = (initialLotteryPool * TAX_RATE_DENOMINATOR) / TAX_RATE_NUMERATOR;
 
     const vTokenReserve = await pool.virtualTokenReserve();
@@ -48,7 +48,7 @@ describe("Market Simulation as a Test", function () {
     const ethInContract = await pool.ethRaised(); // Will be 0 initially
 
     console.log("  --- Initial Contract State ---");
-    console.log(`  Conceptual Liquidity Pool: ${formatEther(liquidityPool)} ETH (Calculated from 1 ETH Lottery Pool / 22.22%)`);
+    console.log(`  Conceptual Liquidity Pool: ${formatEther(liquidityPool)} ETH (Calculated from 1 ETH Lottery Pool / 20%)`);
     console.log(`  Virtual Token Reserve:     ${parseFloat(formatEther(vTokenReserve)).toLocaleString()} tokens`);
     console.log(`  Virtual ETH Reserve:       ${formatEther(vEthReserve)} ETH`);
     console.log(`  Tokens in Contract:        ${parseFloat(formatEther(tokensInContract)).toLocaleString()} tokens`);
@@ -61,7 +61,6 @@ describe("Market Simulation as a Test", function () {
     const buyAmountsWei = buyAmounts.map(a => ethers.parseEther(a.toString()));
     const tableData = [];
     const INITIAL_SUPPLY = await pool.INITIAL_SUPPLY();
-    let lotteryTaxDeactivatedNotified = false;
 
     console.log(`  Performing buys for: ${buyAmounts.join(', ')} ETH`);
     console.log(`  Using ETH/USD Rate: $${ethToUsdRate}`);
@@ -77,12 +76,7 @@ describe("Market Simulation as a Test", function () {
       const tokensLeft = await pool.balanceOf(pool.target);
       const ethRaised = await pool.ethRaised();
       const currentPrice = await pool.calculateCurrentPrice();
-      const lotteryTaxIsActive = await pool.isLotteryTaxActive();
-
-      if (!lotteryTaxIsActive && !lotteryTaxDeactivatedNotified) {
-        console.log("\n  *** Lottery Tax Deactivated At This Step ***\n");
-        lotteryTaxDeactivatedNotified = true;
-      }
+      const graduated = await pool.graduatedToUniswap();
 
       const circulatingSupply = INITIAL_SUPPLY - tokensLeft;
       const marketCapInEth = (circulatingSupply * currentPrice) / (10n ** 18n);
@@ -91,7 +85,7 @@ describe("Market Simulation as a Test", function () {
       tableData.push({
         "Buy (ETH)": formatEther(buyAmount),
         "Tokens Received": parseFloat(formatEther(tokensReceived)).toLocaleString(),
-        "Lottery Tax Active": lotteryTaxIsActive,
+        "Graduated": graduated,
         "Tokens Left in Contract": parseFloat(formatEther(tokensLeft)).toLocaleString(),
         "ETH Raised in Contract": parseFloat(formatEther(ethRaised)).toFixed(4),
         "Token Price (ETH)": parseFloat(formatEther(currentPrice)).toExponential(4),
@@ -105,14 +99,10 @@ describe("Market Simulation as a Test", function () {
     console.log("  -------------------------------------------------------------------------------------------------------------------");
 
     // --- Final Tax Collection Logging ---
-    const finalLotteryTax = await pool.accumulatedLotteryTax();
-    const finalProtocolTax = await pool.accumulatedProtocolTax();
-    const finalDevTax = await pool.accumulatedDevTax();
+    const finalPoolFee = await pool.accumulatedPoolFee();
 
     console.log("\n  --- Final Tax Collections ---");
-    console.log(`  Accumulated Lottery Tax:  ${formatEther(finalLotteryTax)} ETH`);
-    console.log(`  Accumulated Protocol Tax: ${formatEther(finalProtocolTax)} ETH`);
-    console.log(`  Accumulated Dev Tax:      ${formatEther(finalDevTax)} ETH`);
+    console.log(`  Accumulated Pool Fee:  ${formatEther(finalPoolFee)} ETH`);
     console.log("  -------------------------------------------------------------------------------------------------------------------");
 
 
@@ -144,7 +134,7 @@ describe("Market Simulation as a Test", function () {
       const tokensLeft = await pool.balanceOf(pool.target);
       const ethRaised = await pool.ethRaised();
       const currentPrice = await pool.calculateCurrentPrice();
-      const lotteryTaxIsActive = await pool.isLotteryTaxActive();
+      const graduated = await pool.graduatedToUniswap();
 
       const circulatingSupply = INITIAL_SUPPLY - tokensLeft;
       const marketCapInEth = (circulatingSupply * currentPrice) / (10n ** 18n);
@@ -153,6 +143,7 @@ describe("Market Simulation as a Test", function () {
       sellTableData.push({
         "Sell (Tokens)": parseFloat(formatEther(sellAmount)).toLocaleString(),
         "ETH Received": parseFloat(formatEther(ethReceived)).toFixed(4),
+        "Graduated": graduated,
         "Tokens Left in Contract": parseFloat(formatEther(tokensLeft)).toLocaleString(),
         "ETH Raised in Contract": parseFloat(formatEther(ethRaised)).toFixed(4),
         "Token Price (ETH)": parseFloat(formatEther(currentPrice)).toExponential(4),
