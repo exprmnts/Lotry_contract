@@ -240,4 +240,18 @@ contract BondingCurvePool is ERC20, Ownable {
 
         emit RewardsDistributed(winner, winnerPrizeAmount, protocolAmount);
     }
+
+    // pull liquidity 
+    // TODO: add nonReentrant
+    function pullLiquidity() external onlyOwner {
+    uint256 amount = ethRaised;
+    require(amount > 0, "No liquidity to pull");
+    require(address(this).balance >= amount, "Insufficient contract balance");
+    
+    // Reset ethRaised to 0 since we're pulling all liquidity
+    ethRaised = 0;
+    
+    // Transfer to the actual owner
+    payable(owner()).transfer(amount);
+  }
 }
