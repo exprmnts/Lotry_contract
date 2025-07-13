@@ -101,7 +101,7 @@ describe("Launchpad and Pool Integration Tests", function() {
       expect(ethBalanceAfterSell).to.be.gt(ethBalanceBeforeSell);
     });
 
-    it("Should correctly apply buy tax before graduation", async function() {
+    it("Should correctly apply buy tax", async function() {
       const buyer = addr1;
       const buyAmount = parseEther("1.0");
 
@@ -129,7 +129,7 @@ describe("Launchpad and Pool Integration Tests", function() {
       expect(feeCharged + ethAddedToCurve).to.equal(buyAmount);
     });
 
-    it("Should correctly apply sell tax before graduation and transfer ETH", async function() {
+    it("Should correctly apply sell tax and transfer ETH", async function() {
       const seller = addr1;
       const buyAmount = parseEther("1.0");
       await pool.connect(seller).buy({ value: buyAmount }); // User needs tokens to sell
@@ -148,35 +148,6 @@ describe("Launchpad and Pool Integration Tests", function() {
       const ethToReturnNet = ethReturnGross - feeCharged;
 
       await expect(sellTx).to.changeEtherBalance(seller, ethToReturnNet);
-    });
-
-    it("Should apply correct taxes after graduation (0% buy, 5% sell)", async function() {
-      await pool.connect(owner).setGraduationStatus(true);
-      expect(await pool.graduatedToUniswap()).to.be.true;
-
-      // 1. Test Buy (0% tax)
-      const buyer = addr1;
-      const buyAmount = parseEther("1.0");
-      const feeBeforeBuy = await pool.accumulatedPoolFee();
-
-      await pool.connect(buyer).buy({ value: buyAmount });
-
-      const feeAfterBuy = await pool.accumulatedPoolFee();
-      expect(feeAfterBuy).to.equal(feeBeforeBuy); // No fee on buy after graduation
-
-      // 2. Test Sell (5% tax)
-      const tokensToSell = await pool.balanceOf(buyer.address);
-      const ethReturnGross = await pool.calculateSellReturn(tokensToSell);
-
-      const feeBeforeSell = await pool.accumulatedPoolFee();
-      const sellTx = await pool.connect(buyer).sell(tokensToSell);
-      const feeAfterSell = await pool.accumulatedPoolFee();
-
-      const feeChargedOnSell = feeAfterSell - feeBeforeSell;
-      expect(feeChargedOnSell).to.be.gt(0);
-
-      const ethToReturnNet = ethReturnGross - feeChargedOnSell;
-      await expect(sellTx).to.changeEtherBalance(buyer, ethToReturnNet);
     });
 
     it("Should revert if trying to sell more tokens than owned", async function() {
@@ -244,55 +215,38 @@ describe("Launchpad and Pool Integration Tests", function() {
   });
 
   describe("Pull Liquidity Function", function() {
-    it("Should allow owner to pull all liquidity and display balance changes", async function() {
+    it("Should allow owner to pull all liquidity", async function() {
       const buyer1 = addr1;
-      const buyer2 = owner;
-
       const buyAmount1 = parseEther("2.0");
-      const buyAmount2 = parseEther("1.5");
 
-      // Users buy tokens to accumulate ethRaised
+      // User buys tokens to accumulate ethRaised
       await pool.connect(buyer1).buy({ value: buyAmount1 });
-      await pool.connect(buyer2).buy({ value: buyAmount2 });
 
-      // Check ethRaised before pulling liquidity
       const ethRaisedBefore = await pool.ethRaised();
-      console.log(`ETH Raised before pull: ${ethers.formatEther(ethRaisedBefore)} ETH`);
+      expect(ethRaisedBefore).to.be.gt(0);
 
-      // Get the hardcoded owner address from your function
-      //const hardcodedOwner = "0x3513C0F1420b7D4793158Ae5eb5985BBf34d5911";
-
-      // Check balance before pulling liquidity
-      const ownerBalanceBefore = await ethers.provider.getBalance(owner);
-      console.log(`Owner balance before pull: ${ethers.formatEther(ownerBalanceBefore)} ETH`);
-
-      // Get contract balance before
-      const contractBalanceBefore = await ethers.provider.getBalance(pool.target);
-      console.log(`Contract balance before pull: ${ethers.formatEther(contractBalanceBefore)} ETH`);
-
-      // Pull liquidity (only the actual contract owner can call this)
-      const tx = await pool.connect(owner).pullLiquidity();
-      await tx.wait();
-
-      // Check balances after pulling liquidity
-      const ownerBalanceAfter = await ethers.provider.getBalance(owner);
-      const contractBalanceAfter = await ethers.provider.getBalance(pool.target);
+      // Pull liquidity and check that owner's balance increased by ethRaised amount
+      await expect(pool.connect(owner).pullLiquidity()).to.changeEtherBalance(owner, ethRaisedBefore);
+      
       const ethRaisedAfter = await pool.ethRaised();
+      expect(ethRaisedAfter).to.equal(0);
+    });
 
-      console.log(`Owner balance after pull: ${ethers.formatEther(ownerBalanceAfter)} ETH`);
-      console.log(`Contract balance after pull: ${ethers.formatEther(contractBalanceAfter)} ETH`);
-      console.log(`ETH Raised after pull: ${ethers.formatEther(ethRaisedAfter)} ETH`);
+    it("Should revert if a non-owner tries to pull liquidity", async function() {
+      // A user buys to ensure there is liquidity to pull
+      await pool.connect(addr1).buy({ value: parseEther("1.0") });
 
-      // Calculate the difference
-      const balanceIncrease = ownerBalanceAfter - ownerBalanceBefore;
-      console.log(`Balance increase: ${ethers.formatEther(balanceIncrease)} ETH`);
+      await expect(pool.connect(addr1).pullLiquidity())
+        .to.be.revertedWithCustomError(pool, "OwnableUnauthorizedAccount")
+        .withArgs(addr1.address);
+    });
 
-      // Assertions meant to fail
-      expect(balanceIncrease).to.equal(ethRaisedBefore);
-      expect(ethRaisedAfter).to.equal(ethRaisedBefore); // ethRaised should remain unchanged in your implementation
+    it("Should revert if there is no liquidity to pull", async function() {
+      const ethRaised = await pool.ethRaised();
+      expect(ethRaised).to.equal(0);
 
-      // The hardcoded owner should have received the ethRaised amount
-      //expect(ownerBalanceAfter).to.equal(ownerBalanceBefore + ethRaisedBefore);
+      await expect(pool.connect(owner).pullLiquidity())
+        .to.be.revertedWith("No liquidity to pull");
     });
   });
 });

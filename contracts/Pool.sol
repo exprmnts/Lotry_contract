@@ -23,10 +23,7 @@ contract BondingCurvePool is ERC20, Ownable {
     // Fee Structure Constants (Numerators and Denominators for percentage calculations)
     // Tax rate for initial price calculation: 20%
     uint256 private constant TAX_RATE_NUMERATOR = 20;
-    uint256 private constant TAX_RATE_DENOMINATOR = 100; // 20%
-
     uint256 private constant PRE_GRADUATION_TAX_NUMERATOR = 20;
-    uint256 private constant POST_GRADUATION_SELL_TAX_NUMERATOR = 5;
     uint256 private constant TAX_DENOMINATOR = 100;
 
     address public constant PROTOCOL_POOL_ADDRESS = 0x0Df21BEAAadce4893A05503Cee6Ece4d1B087449;
@@ -44,7 +41,6 @@ contract BondingCurvePool is ERC20, Ownable {
     
     // Accumulated Taxes/Fees
     uint256 public accumulatedPoolFee;
-    bool public graduatedToUniswap = false;
 
     // Events for buy and sell
     event TradeEvent(address indexed tokenAddress, uint256 ethPrice);
@@ -71,7 +67,7 @@ contract BondingCurvePool is ERC20, Ownable {
         _mint(address(this), INITIAL_SUPPLY);
         
         // Calculate the conceptual liquidity pool size.
-        uint256 liquidityPool = (lotteryPool * TAX_RATE_DENOMINATOR) / TAX_RATE_NUMERATOR;
+        uint256 liquidityPool = (lotteryPool * TAX_DENOMINATOR) / TAX_RATE_NUMERATOR;
         require(liquidityPool > 0, "Liquidity pool must be positive");
 
         // Set curve parameters to meet the economic requirement: selling 800 million tokens returns 110% of the liquidity pool.
@@ -92,12 +88,7 @@ contract BondingCurvePool is ERC20, Ownable {
         initialTokenPrice = (virtualEthReserve * ONE_ETHER) / virtualTokenReserve;
 
     }
-    
-    function setGraduationStatus(bool _status) public onlyOwner {
-        graduatedToUniswap = _status;
-        emit Graduated(_status);
-    }
-    
+
     // Calculate current token price based on virtual reserves
     function calculateCurrentPrice() public view returns (uint256) {
         if (virtualTokenReserve == 0) return type(uint256).max; // Indicate effectively infinite price
@@ -147,10 +138,8 @@ contract BondingCurvePool is ERC20, Ownable {
         uint256 poolFee = 0;
 
         // Apply fees
-        if (!graduatedToUniswap) {
-            poolFee = (grossEthAmount * PRE_GRADUATION_TAX_NUMERATOR) / TAX_DENOMINATOR;
-            accumulatedPoolFee += poolFee;
-        }
+        poolFee = (grossEthAmount * PRE_GRADUATION_TAX_NUMERATOR) / TAX_DENOMINATOR;
+        accumulatedPoolFee += poolFee;
 
         require(grossEthAmount > poolFee, "Fees exceed sent amount");
         uint256 netEthForCurve = grossEthAmount - poolFee;
@@ -183,11 +172,7 @@ contract BondingCurvePool is ERC20, Ownable {
         require(ethToReturnGross <= virtualEthReserve, "Sell amount exceeds curve's virtual ETH reserve");
 
         uint256 sellFee = 0;
-        if(!graduatedToUniswap) {
-            sellFee = (ethToReturnGross * PRE_GRADUATION_TAX_NUMERATOR) / TAX_DENOMINATOR;
-        } else {
-            sellFee = (ethToReturnGross * POST_GRADUATION_SELL_TAX_NUMERATOR) / TAX_DENOMINATOR;
-        }
+        sellFee = (ethToReturnGross * PRE_GRADUATION_TAX_NUMERATOR) / TAX_DENOMINATOR;
         
         accumulatedPoolFee += sellFee;
         

@@ -76,7 +76,6 @@ describe("Market Simulation as a Test", function () {
       const tokensLeft = await pool.balanceOf(pool.target);
       const ethRaised = await pool.ethRaised();
       const currentPrice = await pool.calculateCurrentPrice();
-      const graduated = await pool.graduatedToUniswap();
 
       const circulatingSupply = INITIAL_SUPPLY - tokensLeft;
       const marketCapInEth = (circulatingSupply * currentPrice) / (10n ** 18n);
@@ -85,7 +84,6 @@ describe("Market Simulation as a Test", function () {
       tableData.push({
         "Buy (ETH)": formatEther(buyAmount),
         "Tokens Received": parseFloat(formatEther(tokensReceived)).toLocaleString(),
-        "Graduated": graduated,
         "Tokens Left in Contract": parseFloat(formatEther(tokensLeft)).toLocaleString(),
         "ETH Raised in Contract": parseFloat(formatEther(ethRaised)).toFixed(4),
         "Token Price (ETH)": parseFloat(formatEther(currentPrice)).toExponential(4),
@@ -134,7 +132,6 @@ describe("Market Simulation as a Test", function () {
       const tokensLeft = await pool.balanceOf(pool.target);
       const ethRaised = await pool.ethRaised();
       const currentPrice = await pool.calculateCurrentPrice();
-      const graduated = await pool.graduatedToUniswap();
 
       const circulatingSupply = INITIAL_SUPPLY - tokensLeft;
       const marketCapInEth = (circulatingSupply * currentPrice) / (10n ** 18n);
@@ -143,7 +140,6 @@ describe("Market Simulation as a Test", function () {
       sellTableData.push({
         "Sell (Tokens)": parseFloat(formatEther(sellAmount)).toLocaleString(),
         "ETH Received": parseFloat(formatEther(ethReceived)).toFixed(4),
-        "Graduated": graduated,
         "Tokens Left in Contract": parseFloat(formatEther(tokensLeft)).toLocaleString(),
         "ETH Raised in Contract": parseFloat(formatEther(ethRaised)).toFixed(4),
         "Token Price (ETH)": parseFloat(formatEther(currentPrice)).toExponential(4),
