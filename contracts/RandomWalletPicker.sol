@@ -86,7 +86,7 @@ contract RandomWalletPicker is VRFConsumerBaseV2Plus {
             callbackGasLimit: i_callbackGasLimit,
             numWords: i_numWords,
             extraArgs: VRFV2PlusClient._argsToBytes(
-                VRFV2PlusClient.ExtraArgsV1({nativePayment: false})
+                VRFV2PlusClient.ExtraArgsV1({nativePayment: true})
             )
         });
 
