@@ -6,9 +6,11 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
 // import "./RandomWalletPicker.sol";
 
-contract BondingCurvePool is ERC20, Ownable {
+contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard{
     using Math for uint256;
 
     // Constants
