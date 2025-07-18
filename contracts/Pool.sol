@@ -207,8 +207,8 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard{
         lotteryPool += _value;
     }
 
-    function distributeRewards(address winner) public {
-        require(msg.sender == REWARD_DISTRIBUTOR, "Caller is not the reward distributor");
+    function distributeRewards(address winner) public onlyOwner {
+        //require(msg.sender == REWARD_DISTRIBUTOR, "Caller is not the reward distributor");
         require(winner != address(0), "Winner address cannot be zero");
 
         uint256 feesToDistribute = accumulatedPoolFee;

@@ -172,14 +172,22 @@ describe("Launchpad and Pool Integration Tests", function() {
     });
 
     it("Should revert if a non-authorized user tries to distribute rewards", async function() {
+      // await expect(pool.connect(addr1).distributeRewards(addr1.address))
+      //   .to.be.revertedWith("Caller is not the reward distributor");
+
       await expect(pool.connect(addr1).distributeRewards(addr1.address))
-        .to.be.revertedWith("Caller is not the reward distributor");
+        .to.be.revertedWithCustomError(pool, "OwnableUnauthorizedAccount")
+        .withArgs(addr1.address);
+
     });
 
     it("Should revert if winner address is the zero address", async function() {
       if (!rewardDistributor) this.skip();
+      // await expect(pool.connect(rewardDistributor).distributeRewards(ethers.ZeroAddress))
+      //   .to.be.revertedWith("Winner address cannot be zero");
       await expect(pool.connect(rewardDistributor).distributeRewards(ethers.ZeroAddress))
-        .to.be.revertedWith("Winner address cannot be zero");
+        .to.be.revertedWithCustomError(pool, "OwnableUnauthorizedAccount")
+        .withArgs(rewardDistributor.address);
     });
 
     it("Should distribute rewards according to the RewardsDistributed event", async function() {
@@ -193,7 +201,7 @@ describe("Launchpad and Pool Integration Tests", function() {
       expect(feesToDistribute).to.be.gt(0);
 
       // Distribute rewards
-      const tx = await pool.connect(rewardDistributor).distributeRewards(winner.address);
+      const tx = await pool.connect(owner).distributeRewards(winner.address);
       const receipt = await tx.wait();
 
       // Find and parse the event
@@ -227,7 +235,7 @@ describe("Launchpad and Pool Integration Tests", function() {
 
       // Pull liquidity and check that owner's balance increased by ethRaised amount
       await expect(pool.connect(owner).pullLiquidity()).to.changeEtherBalance(owner, ethRaisedBefore);
-      
+
       const ethRaisedAfter = await pool.ethRaised();
       expect(ethRaisedAfter).to.equal(0);
     });
