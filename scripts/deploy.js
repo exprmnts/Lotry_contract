@@ -18,35 +18,35 @@ async function main() {
   console.log("TokenLaunchpad deployed to:", await contract_dep.getAddress());
 
   // Deploy token contract, if not requied jus commments out below lines
-  const tokenName = "ETH COIN";
-  const tokenSymbol = "ETC";
-  const initialLotteryPool = parseEther("1.0");
+  // const tokenName = "ETH COIN";
+  // const tokenSymbol = "ETC";
+  // const initialLotteryPool = parseEther("1.0");
 
-  console.log("Launching token...");
-  const tx = await contract_dep.launchToken(tokenName, tokenSymbol, initialLotteryPool);
-  const receipt = await tx.wait();
+  // console.log("Launching token...");
+  // const tx = await contract_dep.launchToken(tokenName, tokenSymbol, initialLotteryPool);
+  // const receipt = await tx.wait();
 
-  console.log("Transaction hash:", receipt.hash);
+  // console.log("Transaction hash:", receipt.hash);
 
-  // Find the TokenCreated event to get the new pool's address
-  const event = receipt.logs.find(log => log.eventName === 'TokenCreated');
+  // // Find the TokenCreated event to get the new pool's address
+  // const event = receipt.logs.find(log => log.eventName === 'TokenCreated');
 
-  if (event) {
-    const poolAddress = event.args.tokenAddress;
-    console.log("Token/Pool deployed to:", poolAddress);
+  // if (event) {
+  //   const poolAddress = event.args.tokenAddress;
+  //   console.log("Token/Pool deployed to:", poolAddress);
 
-    // Optionally attach to the deployed pool contract
-    // const BondingCurvePool = await hre.ethers.getContractFactory("BondingCurvePool");
-    // const pool = BondingCurvePool.attach(poolAddress);
-    // console.log("Pool contract attached successfully");
+  //   // Optionally attach to the deployed pool contract
+  //   // const BondingCurvePool = await hre.ethers.getContractFactory("BondingCurvePool");
+  //   // const pool = BondingCurvePool.attach(poolAddress);
+  //   // console.log("Pool contract attached successfully");
 
-    // You can now interact with the pool contract if needed
-    // For example, get token details:
-    // const tokenDetails = await pool.getTokenDetails(); // if such function exists
+  //   // You can now interact with the pool contract if needed
+  //   // For example, get token details:
+  //   // const tokenDetails = await pool.getTokenDetails(); // if such function exists
 
-  } else {
-    console.error("TokenCreated event not found in transaction receipt");
-  }
+  // } else {
+  //   console.error("TokenCreated event not found in transaction receipt");
+  // }
 }
 
 main().catch((error) => {
