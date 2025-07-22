@@ -233,8 +233,24 @@ describe("Launchpad and Pool Integration Tests", function() {
       const ethRaisedBefore = await pool.ethRaised();
       expect(ethRaisedBefore).to.be.gt(0);
 
+      const poolAddress = await pool.getAddress();
+      const tokenInContractBefore = await pool.balanceOf(poolAddress);
+      console.log("token in contract before pullLiquidity:", tokenInContractBefore);
+      const tokensBefore = await pool.balanceOf(owner);
+      console.log("token balance before pullLiquidity:", tokensBefore);
+      const ethBalanceBefore = await ethers.provider.getBalance(owner)
+      console.log("ETH balance before pullLiquidity:", ethBalanceBefore);
+
       // Pull liquidity and check that owner's balance increased by ethRaised amount
       await expect(pool.connect(owner).pullLiquidity()).to.changeEtherBalance(owner, ethRaisedBefore);
+
+
+      const tokenInContractAfter = await pool.balanceOf(poolAddress);
+      console.log("token in contract after pullLiquidity:", tokenInContractAfter);
+      const tokens = await pool.balanceOf(owner);
+      console.log("token balance after pullLiquidity:", tokens);
+      const ethBalance = await ethers.provider.getBalance(owner)
+      console.log("ETH balance after pullLiquidity:", ethBalance);
 
       const ethRaisedAfter = await pool.ethRaised();
       expect(ethRaisedAfter).to.equal(0);

