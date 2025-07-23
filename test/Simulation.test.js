@@ -2,10 +2,10 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const { formatEther } = ethers;
 
-describe("Market Simulation as a Test", function () {
+describe("Market Simulation as a Test", function() {
   this.timeout(60000); // 1 minute timeout for the simulation
 
-  it("for LOTTERY POOL = 1 ETH, should deploy a token, perform a series of buys, and log the market state", async function () {
+  it("for LOTTERY POOL = 1 ETH, should deploy a token, perform a series of buys, and log the market state", async function() {
     // --- Setup ---
     const [owner, buyer] = await ethers.getSigners();
     const tokenName = "Simulation Token";
@@ -76,6 +76,8 @@ describe("Market Simulation as a Test", function () {
       const tokensLeft = await pool.balanceOf(pool.target);
       const ethRaised = await pool.ethRaised();
       const currentPrice = await pool.calculateCurrentPrice();
+      const potRaised = await pool.potRaised();
+      const accumulatedPoolFee = await pool.accumulatedPoolFee();
 
       const circulatingSupply = INITIAL_SUPPLY - tokensLeft;
       const marketCapInEth = (circulatingSupply * currentPrice) / (10n ** 18n);
@@ -85,9 +87,11 @@ describe("Market Simulation as a Test", function () {
         "Buy (ETH)": formatEther(buyAmount),
         "Tokens Received": parseFloat(formatEther(tokensReceived)).toLocaleString(),
         "Tokens Left in Contract": parseFloat(formatEther(tokensLeft)).toLocaleString(),
-        "ETH Raised in Contract": parseFloat(formatEther(ethRaised)).toFixed(4),
-        "Token Price (ETH)": parseFloat(formatEther(currentPrice)).toExponential(4),
-        "Market Cap (USD)": marketCapInUsd.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+        "ETH Raised in Contract": parseFloat(formatEther(ethRaised)).toFixed(18),
+        "Token Price (ETH)": parseFloat(formatEther(currentPrice)).toFixed(18),
+        "Market Cap (USD)": marketCapInUsd.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
+        "Pot Raised (ETH)": potRaised ? 'YES' : 'NO',
+        "Accumulated Pool Fee (ETH)": parseFloat(formatEther(accumulatedPoolFee)).toFixed(18),
       });
     }
 
@@ -98,6 +102,7 @@ describe("Market Simulation as a Test", function () {
 
     // --- Final Tax Collection Logging ---
     const finalPoolFee = await pool.accumulatedPoolFee();
+    const potRaised = await pool.potRaised();
 
     console.log("\n  --- Final Tax Collections ---");
     console.log(`  Accumulated Pool Fee:  ${formatEther(finalPoolFee)} ETH`);
@@ -111,7 +116,7 @@ describe("Market Simulation as a Test", function () {
     const sellTableData = [];
 
     console.log(`\n  Performing sells for: ${sellAmounts.map(a => a.toLocaleString()).join(', ')} tokens`);
-    
+
     for (const sellAmount of sellAmountsWei) {
       const sellerBalance = await pool.balanceOf(seller.address);
       if (sellerBalance < sellAmount) {
@@ -120,7 +125,7 @@ describe("Market Simulation as a Test", function () {
       }
 
       const ethBalanceBefore = await ethers.provider.getBalance(seller.address);
-      
+
       const sellTx = await pool.connect(seller).sell(sellAmount);
       const sellReceipt = await sellTx.wait();
       const gasUsed = sellReceipt.gasUsed * sellTx.gasPrice;
@@ -132,6 +137,8 @@ describe("Market Simulation as a Test", function () {
       const tokensLeft = await pool.balanceOf(pool.target);
       const ethRaised = await pool.ethRaised();
       const currentPrice = await pool.calculateCurrentPrice();
+      const potRaised = await pool.potRaised();
+      const accumulatedPoolFee = await pool.accumulatedPoolFee();
 
       const circulatingSupply = INITIAL_SUPPLY - tokensLeft;
       const marketCapInEth = (circulatingSupply * currentPrice) / (10n ** 18n);
@@ -139,11 +146,13 @@ describe("Market Simulation as a Test", function () {
 
       sellTableData.push({
         "Sell (Tokens)": parseFloat(formatEther(sellAmount)).toLocaleString(),
-        "ETH Received": parseFloat(formatEther(ethReceived)).toFixed(4),
+        "ETH Received": parseFloat(formatEther(ethReceived)).toFixed(18),
         "Tokens Left in Contract": parseFloat(formatEther(tokensLeft)).toLocaleString(),
-        "ETH Raised in Contract": parseFloat(formatEther(ethRaised)).toFixed(4),
-        "Token Price (ETH)": parseFloat(formatEther(currentPrice)).toExponential(4),
-        "Market Cap (USD)": marketCapInUsd.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+        "ETH Raised in Contract": parseFloat(formatEther(ethRaised)).toFixed(18),
+        "Token Price (ETH)": parseFloat(formatEther(currentPrice)).toFixed(18),
+        "Market Cap (USD)": marketCapInUsd.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
+        "Pot Raised (ETH)": potRaised ? 'YES' : 'NO',
+        "Accumulated Pool Fee (ETH)": parseFloat(formatEther(accumulatedPoolFee)).toFixed(18),
       });
     }
 
