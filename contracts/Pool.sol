@@ -143,7 +143,7 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard{
     }
 
     // Buy tokens with ETH
-    function buy() public payable {
+    function buy() public payable nonReentrant {
         require(msg.value >= MIN_BUY, "Below minimum buy amount");
         
         uint256 grossEthAmount = msg.value;
@@ -185,7 +185,7 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard{
     }
 
     // Sell tokens to get ETH back
-    function sell(uint256 tokenAmount) public {
+    function sell(uint256 tokenAmount) public nonReentrant  {
         require(tokenAmount > 0, "Must sell more than 0 tokens");
         require(balanceOf(msg.sender) >= tokenAmount, "Not enough tokens to sell");   
 
