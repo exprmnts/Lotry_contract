@@ -43,28 +43,48 @@ async function main() {
     process.exit(1);
   }
 
+  // --- Pre-pull Status ---
+  console.log("\n--- Status Before pullLiquidity ---");
+
   // Check liquidity status
   const ethRaised = await pool.ethRaised();
   const contractBalance = await provider.getBalance(CONTRACT_ADDRESS);
-  console.log(`ethRaised (wei): ${ethRaised}`);
-  console.log(`Contract ETH balance (wei): ${contractBalance}`);
+  const ownerTokenBalance = await pool.balanceOf(ownerSigner.address);
+  const contractTokenBalance = await pool.balanceOf(CONTRACT_ADDRESS);
+
+  console.log(`ethRaised: ${ethers.formatEther(ethRaised)} ETH`);
+  console.log(`Contract ETH balance: ${ethers.formatEther(contractBalance)} ETH`);
+  console.log(`Owner Token Balance: ${ethers.formatUnits(ownerTokenBalance, 18)} tokens`);
+  console.log(`Contract Token Balance: ${ethers.formatUnits(contractTokenBalance, 18)} tokens`);
 
   if (ethRaised === 0n) {
-    console.error("No liquidity to pull. ethRaised is 0.");
+    console.error("\nNo liquidity to pull. ethRaised is 0. Exiting.");
     return;
   }
   if (contractBalance < ethRaised) {
-    console.error("Contract balance is less than ethRaised; pullLiquidity would revert. Aborting.");
+    console.error("\nContract balance is less than ethRaised; pullLiquidity would revert. Aborting.");
     return;
   }
 
   // Call pullLiquidity
-  console.log("Calling pullLiquidity ...");
+  console.log("\nCalling pullLiquidity ...");
   const tx = await pool.pullLiquidity();
   console.log(`Transaction submitted: ${tx.hash}`);
 
   await tx.wait();
   console.log("pullLiquidity executed successfully ✅");
+
+  // --- Post-pull Status ---
+  console.log("\n--- Status After pullLiquidity ---");
+  const ethRaisedAfter = await pool.ethRaised();
+  const contractBalanceAfter = await provider.getBalance(CONTRACT_ADDRESS);
+  const ownerTokenBalanceAfter = await pool.balanceOf(ownerSigner.address);
+  const contractTokenBalanceAfter = await pool.balanceOf(CONTRACT_ADDRESS);
+
+  console.log(`ethRaised: ${ethers.formatEther(ethRaisedAfter)} ETH`);
+  console.log(`Contract ETH balance: ${ethers.formatEther(contractBalanceAfter)} ETH`);
+  console.log(`Owner Token Balance: ${ethers.formatUnits(ownerTokenBalanceAfter, 18)} tokens`);
+  console.log(`Contract Token Balance: ${ethers.formatUnits(contractTokenBalanceAfter, 18)} tokens`);
 }
 
 main().catch((error) => {

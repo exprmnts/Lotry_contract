@@ -119,7 +119,7 @@ describe("Launchpad and Pool Integration Tests", function() {
       const feeCharged = feeAfter - feeBefore;
       const ethAddedToCurve = ethRaisedAfter - ethRaisedBefore;
 
-      // 1. A fee should be charged
+      // 1. A fee should be charged (20% before pot is raised)
       expect(feeCharged).to.be.gt(0);
 
       // 2. The buyer should receive tokens
@@ -148,6 +148,41 @@ describe("Launchpad and Pool Integration Tests", function() {
       const ethToReturnNet = ethReturnGross - feeCharged;
 
       await expect(sellTx).to.changeEtherBalance(seller, ethToReturnNet);
+    });
+
+    it("Should switch tax rates after lottery pot is raised", async function() {
+      const buyer = addr1;
+
+      // Buy enough so that net ETH added to curve >= lotteryPool (1 ETH configured in beforeEach)
+      const firstBuy = parseEther("2.0");
+      await pool.connect(buyer).buy({ value: firstBuy });
+
+      // Pot should now be marked as raised
+      expect(await pool.potRaised()).to.equal(true);
+
+      // --- Verify BUY tax is now 0% ---
+      const feeBefore = await pool.accumulatedPoolFee();
+      const secondBuy = parseEther("1.0");
+      await pool.connect(buyer).buy({ value: secondBuy });
+      const feeAfter = await pool.accumulatedPoolFee();
+      const feeChargedOnSecondBuy = feeAfter - feeBefore;
+      expect(feeChargedOnSecondBuy).to.equal(0n);
+
+      // --- Verify SELL tax is now 5% ---
+      const tokensToSell = await pool.balanceOf(buyer.address);
+      const ethReturnGross = await pool.calculateSellReturn(tokensToSell);
+      const expectedSellFee = (ethReturnGross * 5n) / 100n; // 5%
+
+      const feeBeforeSell = await pool.accumulatedPoolFee();
+      await pool.connect(buyer).approve(pool.target, tokensToSell);
+      await pool.connect(buyer).sell(tokensToSell);
+      const feeAfterSell = await pool.accumulatedPoolFee();
+      const sellFeeCharged = feeAfterSell - feeBeforeSell;
+
+      // Allow small rounding tolerance
+      const tolerance = expectedSellFee / 10000n; // 0.01% tolerance
+      const diff = sellFeeCharged > expectedSellFee ? sellFeeCharged - expectedSellFee : expectedSellFee - sellFeeCharged;
+      expect(diff <= tolerance).to.be.true;
     });
 
     it("Should revert if trying to sell more tokens than owned", async function() {
@@ -244,6 +279,14 @@ describe("Launchpad and Pool Integration Tests", function() {
       // Pull liquidity and check that owner's balance increased by ethRaised amount
       await expect(pool.connect(owner).pullLiquidity()).to.changeEtherBalance(owner, ethRaisedBefore);
 
+      // After liquidity is pulled, trading should be disabled
+      await expect(pool.connect(addr1).buy({ value: parseEther("1.0") })).to.be.revertedWith("Trading disabled");
+
+      const tokensHeld = await pool.balanceOf(buyer1.address);
+      if (tokensHeld > 0n) {
+        await pool.connect(buyer1).approve(pool.target, tokensHeld);
+        await expect(pool.connect(buyer1).sell(tokensHeld)).to.be.revertedWith("Trading disabled");
+      }
 
       const tokenInContractAfter = await pool.balanceOf(poolAddress);
       console.log("token in contract after pullLiquidity:", tokenInContractAfter);

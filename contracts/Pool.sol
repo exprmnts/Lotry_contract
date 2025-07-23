@@ -15,7 +15,7 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard{
 
     // Constants
     uint256 public constant INITIAL_SUPPLY = 1_000_000_000 * 1e18; // 1 Billion tokens with 18 decimals
-    uint256 public constant RESERVED_SUPPLY = 200_000_000 * 1e18; // 200M tokens reserved
+    // Entire initial supply will be available on the curve (no reserved portion)
     uint256 public constant MIN_LOTTERY_POOL = 0.01 ether; // 0.01 ETH minimum
     uint256 public constant MAX_LOTTERY_POOL = 100 ether; // 100 ETH maximum
     uint256 public constant MIN_BUY = 0.001 ether; // Minimum purchase
@@ -25,11 +25,15 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard{
     // Fee Structure Constants (Numerators and Denominators for percentage calculations)
     // Tax rate for initial price calculation: 20%
     uint256 private constant TAX_RATE_NUMERATOR = 20;
-    uint256 private constant PRE_GRADUATION_TAX_NUMERATOR = 20;
+    // Tax configuration
+    // Phase 1 (before lottery pot is raised): 20% buy & sell tax
+    // Phase 2 (after pot raised): 0% buy tax, 5% sell tax
+    uint256 private constant PRE_GRAD_TAX_NUMERATOR = 20;
+    uint256 private constant POST_GRAD_BUY_TAX_NUMERATOR = 0;
+    uint256 private constant POST_GRAD_SELL_TAX_NUMERATOR = 5;
     uint256 private constant TAX_DENOMINATOR = 100;
 
     address public constant PROTOCOL_POOL_ADDRESS = 0x0Df21BEAAadce4893A05503Cee6Ece4d1B087449;
-    address public constant REWARD_DISTRIBUTOR = 0x3513C0F1420b7D4793158Ae5eb5985BBf34d5911;
 
     // State variables
     uint256 public initialTokenPrice;
@@ -43,6 +47,12 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard{
     
     // Accumulated Taxes/Fees
     uint256 public accumulatedPoolFee;
+
+    // Flag to permanently disable trading after liquidity is pulled
+    bool public liquidityPulled;
+
+    // Tracks whether the lottery pot has been raised — switches tax regime
+    bool public potRaised;
 
     // Events for buy and sell
     event TradeEvent(address indexed tokenAddress, uint256 ethPrice);
@@ -137,22 +147,32 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard{
         require(msg.value >= MIN_BUY, "Below minimum buy amount");
         
         uint256 grossEthAmount = msg.value;
-        uint256 poolFee = 0;
+        require(!liquidityPulled, "Trading disabled");
 
-        // Apply fees
-        poolFee = (grossEthAmount * PRE_GRADUATION_TAX_NUMERATOR) / TAX_DENOMINATOR;
-        accumulatedPoolFee += poolFee;
+        uint256 poolFee;
+        if (potRaised) {
+            // Phase 2 – no buy tax
+            poolFee = (grossEthAmount * POST_GRAD_BUY_TAX_NUMERATOR) / TAX_DENOMINATOR; // 0
+        } else {
+            // Phase 1 – 20% buy tax
+            poolFee = (grossEthAmount * PRE_GRAD_TAX_NUMERATOR) / TAX_DENOMINATOR;
+        }
+        if (poolFee > 0) {
+            accumulatedPoolFee += poolFee;
+        }
 
-        require(grossEthAmount > poolFee, "Fees exceed sent amount");
         uint256 netEthForCurve = grossEthAmount - poolFee;
         
         uint256 tokensToTransfer = calculateBuyReturn(netEthForCurve);
         require(tokensToTransfer > 0, "Would receive zero tokens for net ETH");
         
-        require(balanceOf(address(this)) - tokensToTransfer >= RESERVED_SUPPLY, "Sale exceeds allowable supply");
-        
         // Update state
         ethRaised += netEthForCurve; 
+        // Check if lottery pot has been raised (Phase transition)
+        if (!potRaised && ethRaised >= lotteryPool) {
+            potRaised = true;
+            emit Graduated(true);
+        }
         
         virtualEthReserve += netEthForCurve; 
         virtualTokenReserve -= tokensToTransfer;
@@ -173,8 +193,14 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard{
         require(ethToReturnGross > 0, "Would receive zero ETH");
         require(ethToReturnGross <= virtualEthReserve, "Sell amount exceeds curve's virtual ETH reserve");
 
-        uint256 sellFee = 0;
-        sellFee = (ethToReturnGross * PRE_GRADUATION_TAX_NUMERATOR) / TAX_DENOMINATOR;
+        require(!liquidityPulled, "Trading disabled");
+
+        uint256 sellFee;
+        if (potRaised) {
+            sellFee = (ethToReturnGross * POST_GRAD_SELL_TAX_NUMERATOR) / TAX_DENOMINATOR; // 5%
+        } else {
+            sellFee = (ethToReturnGross * PRE_GRAD_TAX_NUMERATOR) / TAX_DENOMINATOR; // 20%
+        }
         
         accumulatedPoolFee += sellFee;
         
@@ -208,7 +234,6 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard{
     }
 
     function distributeRewards(address winner) public onlyOwner {
-        //require(msg.sender == REWARD_DISTRIBUTOR, "Caller is not the reward distributor");
         require(winner != address(0), "Winner address cannot be zero");
 
         uint256 feesToDistribute = accumulatedPoolFee;
@@ -231,17 +256,21 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard{
     // pull liquidity 
     // TODO: add nonReentrant
     function pullLiquidity() external onlyOwner {
-    uint256 amount = ethRaised;
-    require(amount > 0, "No liquidity to pull");
-    // require(address(this).balance >= amount, "Insufficient contract balance");
-    
-    // Reset ethRaised to 0 since we're pulling all liquidity
-    ethRaised = 0;
+        require(!liquidityPulled, "Liquidity already pulled");
 
-    // send RESERVED_SUPPLY to owner
-    _transfer(address(this), owner(), balanceOf(address(this)));
+        uint256 amount = ethRaised;
+        require(amount > 0, "No liquidity to pull");
 
-    // Transfer to the actual owner
-    payable(owner()).transfer(amount);
-  }
+        // Reset ethRaised to 0 since we're pulling all liquidity
+        ethRaised = 0;
+
+        // Mark trading as permanently disabled
+        liquidityPulled = true;
+
+        // Transfer remaining tokens in contract to the owner
+        _transfer(address(this), owner(), balanceOf(address(this)));
+
+        // Transfer collected ETH to the owner
+        payable(owner()).transfer(amount);
+    }
 }
