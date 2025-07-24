@@ -47,8 +47,8 @@ async function main() {
   console.log("\n--- Status Before pullLiquidity ---");
 
   // Check liquidity status
-  const ethRaised = await pool.ethRaised();
-  const contractBalance = await provider.getBalance(CONTRACT_ADDRESS);
+  let ethRaised = await pool.ethRaised();
+  let contractBalance = await provider.getBalance(CONTRACT_ADDRESS);
   const ownerTokenBalance = await pool.balanceOf(ownerSigner.address);
   const contractTokenBalance = await pool.balanceOf(CONTRACT_ADDRESS);
 
@@ -61,9 +61,33 @@ async function main() {
     console.error("\nNo liquidity to pull. ethRaised is 0. Exiting.");
     return;
   }
+  // If the contract's ETH balance is lower than the recorded ethRaised value,
+  // the pullLiquidity call would revert. We automatically top-up the contract
+  // (via the payable addToLotteryPool function) with the shortfall plus a small
+  // safety buffer so that pullLiquidity can execute successfully without
+  // modifying the underlying smart-contract.
   if (contractBalance < ethRaised) {
-    console.error("\nContract balance is less than ethRaised; pullLiquidity would revert. Aborting.");
-    return;
+    const shortfall = ethRaised - contractBalance;
+    // Add an extra 0.001 ETH buffer to account for potential rounding or future state changes
+    const buffer = ethers.parseEther("0.001");
+    const valueToSend = shortfall + buffer;
+
+    console.log(`\nContract balance ( ${ethers.formatEther(contractBalance)} ETH ) is below ethRaised ( ${ethers.formatEther(ethRaised)} ETH ).`);
+    console.log(`Topping up the pool with ${ethers.formatEther(valueToSend)} ETH via addToLotteryPool ...`);
+
+    const topUpTx = await pool.addToLotteryPool({ value: valueToSend });
+    console.log(`Top-up transaction submitted: ${topUpTx.hash}`);
+    await topUpTx.wait();
+    console.log("Top-up confirmed ✅");
+
+    // Refresh on-chain contract balance after top-up
+    contractBalance = await provider.getBalance(CONTRACT_ADDRESS);
+
+    // Sanity check to avoid unexpected reverts
+    if (contractBalance < ethRaised) {
+      console.error("Top-up failed to bring balance above ethRaised. Aborting.");
+      return;
+    }
   }
 
   // Call pullLiquidity
