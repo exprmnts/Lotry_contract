@@ -54,6 +54,16 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard{
     // Tracks whether the lottery pot has been raised — switches tax regime
     bool public potRaised;
 
+    // Internal helper to flip graduation flag once enough fees have been
+    // accumulated (>= `lotteryPool`). We call this after *every* fee update so
+    // that both buys and sells contribute toward reaching the target.
+    function _updatePotStatus() internal {
+        if (!potRaised && accumulatedPoolFee >= lotteryPool) {
+            potRaised = true;
+            emit Graduated(true);
+        }
+    }
+
     // Events for buy and sell
     event TradeEvent(address indexed tokenAddress, uint256 ethPrice);
     event RewardsDistributed(address indexed winner, uint256 winnerPrizeAmount, uint256 protocolAmount);
@@ -83,7 +93,9 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard{
         require(liquidityPool > 0, "Liquidity pool must be positive");
 
         // Set curve parameters to meet the economic requirement: selling 800 million tokens returns 110% of the liquidity pool.
-        uint256 V_TOKEN_MULTIPLIER = 10; 
+        // Lowering the virtual token multiplier so that the price grows faster and the
+        // real token reserve can never be fully depleted under realistic volumes.
+        uint256 V_TOKEN_MULTIPLIER = 1;
         virtualTokenReserve = INITIAL_SUPPLY * V_TOKEN_MULTIPLIER;
 
         uint256 tokensToSellForCondition = (INITIAL_SUPPLY * 80) / 100; // 800M tokens
@@ -165,14 +177,13 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard{
         
         uint256 tokensToTransfer = calculateBuyReturn(netEthForCurve);
         require(tokensToTransfer > 0, "Would receive zero tokens for net ETH");
+        // Ensure the contract has enough real tokens left to honour the buy.
+        require(tokensToTransfer <= balanceOf(address(this)), "Insufficient token reserves");
         
         // Update state
         ethRaised += netEthForCurve; 
-        // Check if lottery pot has been raised (Phase transition)
-        if (!potRaised && ethRaised >= lotteryPool) {
-            potRaised = true;
-            emit Graduated(true);
-        }
+        // Check graduation based on fee accumulation
+        _updatePotStatus();
         
         virtualEthReserve += netEthForCurve; 
         virtualTokenReserve -= tokensToTransfer;
@@ -203,6 +214,7 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard{
         }
         
         accumulatedPoolFee += sellFee;
+        _updatePotStatus();
         
         require(ethToReturnGross > sellFee, "Fee exceeds return amount");
         uint256 ethToReturnNet = ethToReturnGross - sellFee;

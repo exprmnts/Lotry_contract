@@ -57,21 +57,26 @@ describe("Market Simulation as a Test", function() {
 
 
     // --- Simulation ---
-    const buyAmounts = [0.1, 0.4, 0.4, 0.5, 0.5, 0.7, 1.0, 1.0, 2.0];
-    const buyAmountsWei = buyAmounts.map(a => ethers.parseEther(a.toString()));
-    const tableData = [];
+    // We will buy until at least 800 M tokens (80 % of supply) have been sold.
+    const targetTokensSold = ethers.parseEther("800000000"); // 800 M tokens with 18 decimals
+    let tokensSoldTotal = 0n;
+    let iteration = 0;
+    let buyAmountWei = ethers.parseEther("1"); // start with 1 ETH
+    const buyTableData = [];
     const INITIAL_SUPPLY = await pool.INITIAL_SUPPLY();
 
-    console.log(`  Performing buys for: ${buyAmounts.join(', ')} ETH`);
+    console.log("  Adaptive buy loop commencing (target 800 M tokens sold)…");
     console.log(`  Using ETH/USD Rate: $${ethToUsdRate}`);
     console.log("  -------------------------------------------------------------------------------------------------------------------");
 
 
-    for (const buyAmount of buyAmountsWei) {
+    while ((tokensSoldTotal < targetTokensSold || !(await pool.potRaised())) && iteration < 50) {
       const balanceBefore = await pool.balanceOf(buyer.address);
-      await pool.connect(buyer).buy({ value: buyAmount });
+      await pool.connect(buyer).buy({ value: buyAmountWei });
       const balanceAfter = await pool.balanceOf(buyer.address);
       const tokensReceived = balanceAfter - balanceBefore;
+
+      tokensSoldTotal += tokensReceived;
 
       const tokensLeft = await pool.balanceOf(pool.target);
       const ethRaised = await pool.ethRaised();
@@ -83,21 +88,29 @@ describe("Market Simulation as a Test", function() {
       const marketCapInEth = (circulatingSupply * currentPrice) / (10n ** 18n);
       const marketCapInUsd = parseFloat(formatEther(marketCapInEth)) * ethToUsdRate;
 
-      tableData.push({
-        "Buy (ETH)": formatEther(buyAmount),
+      buyTableData.push({
+        Iteration: iteration,
+        "Buy (ETH)": parseFloat(formatEther(buyAmountWei)).toFixed(4),
         "Tokens Received": parseFloat(formatEther(tokensReceived)).toLocaleString(),
-        "Tokens Left in Contract": parseFloat(formatEther(tokensLeft)).toLocaleString(),
-        "ETH Raised in Contract": parseFloat(formatEther(ethRaised)).toFixed(18),
+        "Cum Tokens Sold": parseFloat(formatEther(tokensSoldTotal)).toLocaleString(),
+        "Tokens Left": parseFloat(formatEther(tokensLeft)).toLocaleString(),
         "Token Price (ETH)": parseFloat(formatEther(currentPrice)).toFixed(18),
         "Market Cap (USD)": marketCapInUsd.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
-        "Pot Raised (ETH)": potRaised ? 'YES' : 'NO',
-        "Accumulated Pool Fee (ETH)": parseFloat(formatEther(accumulatedPoolFee)).toFixed(18),
+        "ETH Raised": parseFloat(formatEther(ethRaised)).toFixed(18),
+        "Accum Fee": parseFloat(formatEther(accumulatedPoolFee)).toFixed(6),
+        "Pot Raised": potRaised ? 'YES' : 'NO',
       });
+
+      // Prepare next iteration
+      buyAmountWei *= 2n; // double the ETH commitment each round
+      if (buyAmountWei > ethers.parseEther("1000")) {
+        buyAmountWei = ethers.parseEther("1000");
+      }
+      iteration++;
     }
 
-    // --- Display Results ---
-    console.log("\n  --- Market Simulation Results ---");
-    console.table(tableData);
+    console.log("\n  --- Adaptive Buy Loop Results ---");
+    console.table(buyTableData);
     console.log("  -------------------------------------------------------------------------------------------------------------------");
 
     // --- Final Tax Collection Logging ---
@@ -111,16 +124,22 @@ describe("Market Simulation as a Test", function() {
 
     // --- Sell Simulation ---
     const seller = buyer; // The user who bought tokens will now sell
-    const sellAmounts = [100_000, 500_000, 1_000_000, 1_000_000, 100_000_000, 100_000_000, 100_000_000, 500_000, 500_000_000];
-    const sellAmountsWei = sellAmounts.map(a => ethers.parseEther(a.toString()));
+    const sellerBalanceTotal = await pool.balanceOf(seller.address);
+
+    // Sell 10%, then 30%, then 50% of the seller's balance to demonstrate mixed activity
+    const sellAmountsWei = [
+      sellerBalanceTotal / 10n,
+      (sellerBalanceTotal * 3n) / 10n,
+      sellerBalanceTotal / 2n,
+    ];
     const sellTableData = [];
 
-    console.log(`\n  Performing sells for: ${sellAmounts.map(a => a.toLocaleString()).join(', ')} tokens`);
+    console.log("\n  Performing proportional sells (10 %, 30 %, 50 % of holdings)…");
 
     for (const sellAmount of sellAmountsWei) {
-      const sellerBalance = await pool.balanceOf(seller.address);
-      if (sellerBalance < sellAmount) {
-        console.log(`\n  Skipping sell of ${formatEther(sellAmount)} tokens, seller only has ${formatEther(sellerBalance)} tokens.`);
+      const currentSellerBalance = await pool.balanceOf(seller.address);
+      if (currentSellerBalance < sellAmount) {
+        console.log(`\n  Skipping sell of ${formatEther(sellAmount)} tokens, seller only has ${formatEther(currentSellerBalance)} tokens.`);
         continue;
       }
 
