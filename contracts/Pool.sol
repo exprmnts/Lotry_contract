@@ -265,24 +265,29 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard{
         emit RewardsDistributed(winner, winnerPrizeAmount, protocolAmount);
     }
 
-    // pull liquidity 
-    // TODO: add nonReentrant
-    function pullLiquidity() external onlyOwner {
+    // Pulls whatever ETH balance the contract currently holds (even if it is
+    // lower than the recorded `ethRaised` value). This protects against cases
+    // where rewards or external calls have reduced the balance beneath
+    // `ethRaised`, causing the original implementation to revert.
+    //
+    // After withdrawal, `ethRaised` is set to 0 and trading is permanently
+    // disabled via `liquidityPulled`.
+    function pullLiquidity() external onlyOwner nonReentrant {
         require(!liquidityPulled, "Liquidity already pulled");
 
-        uint256 amount = ethRaised;
+        uint256 amount = address(this).balance;
         require(amount > 0, "No liquidity to pull");
 
-        // Reset ethRaised to 0 since we're pulling all liquidity
+        // Reset ethRaised to 0 since we're winding down the pool
         ethRaised = 0;
 
         // Mark trading as permanently disabled
         liquidityPulled = true;
 
-        // Transfer remaining tokens in contract to the owner
+        // Transfer any remaining tokens in contract to the owner
         _transfer(address(this), owner(), balanceOf(address(this)));
 
-        // Transfer collected ETH to the owner
+        // Transfer whatever ETH is left in the contract to the owner
         payable(owner()).transfer(amount);
     }
 }
