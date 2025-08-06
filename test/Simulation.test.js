@@ -11,7 +11,7 @@ describe("Market Simulation as a Test", function() {
     const tokenName = "Simulation Token";
     const tokenSymbol = "SIM";
     const initialLotteryPool = ethers.parseEther("1.0");
-    const ethToUsdRate = 2795.68;
+    const ethToUsdRate = 3625.92;
 
     console.log("\n  Deploying contracts to create a new token with a 1 ETH lottery pool...");
     // Deploy Launchpad
@@ -47,12 +47,21 @@ describe("Market Simulation as a Test", function() {
     const tokensInContract = await pool.balanceOf(pool.target);
     const ethInContract = await pool.ethRaised(); // Will be 0 initially
 
+    // Retrieve constants and initial metrics
+    const INITIAL_SUPPLY = await pool.INITIAL_SUPPLY();
+    const initialPrice = await pool.calculateCurrentPrice();
+    const initialCirculatingSupply = INITIAL_SUPPLY - tokensInContract;
+    const initialMarketCapInEth = (initialCirculatingSupply * initialPrice) / (10n ** 18n);
+    const initialMarketCapInUsd = parseFloat(formatEther(initialMarketCapInEth)) * ethToUsdRate;
+
     console.log("  --- Initial Contract State ---");
     console.log(`  Conceptual Liquidity Pool: ${formatEther(liquidityPool)} ETH (Calculated from 1 ETH Lottery Pool / 20%)`);
     console.log(`  Virtual Token Reserve:     ${parseFloat(formatEther(vTokenReserve)).toLocaleString()} tokens`);
     console.log(`  Virtual ETH Reserve:       ${formatEther(vEthReserve)} ETH`);
     console.log(`  Tokens in Contract:        ${parseFloat(formatEther(tokensInContract)).toLocaleString()} tokens`);
     console.log(`  ETH Raised in Contract:    ${formatEther(ethInContract)} ETH`);
+    console.log(`  Initial Token Price:       ${parseFloat(formatEther(initialPrice)).toFixed(18)} ETH`);
+    console.log(`  Initial Market Cap (USD):  ${initialMarketCapInUsd.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`);
     console.log("  -------------------------------------------------------------------------------------------------------------------");
 
 
@@ -63,7 +72,7 @@ describe("Market Simulation as a Test", function() {
     let iteration = 0;
     let buyAmountWei = ethers.parseEther("1"); // start with 1 ETH
     const buyTableData = [];
-    const INITIAL_SUPPLY = await pool.INITIAL_SUPPLY();
+    // const INITIAL_SUPPLY = await pool.INITIAL_SUPPLY(); // already defined above
 
     console.log("  Adaptive buy loop commencing (target 800 M tokens sold)…");
     console.log(`  Using ETH/USD Rate: $${ethToUsdRate}`);
@@ -83,19 +92,22 @@ describe("Market Simulation as a Test", function() {
       const currentPrice = await pool.calculateCurrentPrice();
       const potRaised = await pool.potRaised();
       const accumulatedPoolFee = await pool.accumulatedPoolFee();
+      const vTokenReserve = await pool.virtualTokenReserve();
+      const vEthReserve = await pool.virtualEthReserve();
 
       const circulatingSupply = INITIAL_SUPPLY - tokensLeft;
       const marketCapInEth = (circulatingSupply * currentPrice) / (10n ** 18n);
       const marketCapInUsd = parseFloat(formatEther(marketCapInEth)) * ethToUsdRate;
 
       buyTableData.push({
-        Iteration: iteration,
         "Buy (ETH)": parseFloat(formatEther(buyAmountWei)).toFixed(4),
         "Tokens Received": parseFloat(formatEther(tokensReceived)).toLocaleString(),
         "Cum Tokens Sold": parseFloat(formatEther(tokensSoldTotal)).toLocaleString(),
         "Tokens Left": parseFloat(formatEther(tokensLeft)).toLocaleString(),
+        "Virtual Token Reserve": parseFloat(formatEther(vTokenReserve)).toLocaleString(),
+        "Virtual ETH Reserve": parseFloat(formatEther(vEthReserve)).toFixed(4),
         "Token Price (ETH)": parseFloat(formatEther(currentPrice)).toFixed(18),
-        "Market Cap (USD)": marketCapInUsd.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
+        "Market Cap (ETH/USD)": `${parseFloat(formatEther(marketCapInEth)).toFixed(4)} / ${marketCapInUsd.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`,
         "ETH Raised": parseFloat(formatEther(ethRaised)).toFixed(18),
         "Accum Fee": parseFloat(formatEther(accumulatedPoolFee)).toFixed(6),
         "Pot Raised": potRaised ? 'YES' : 'NO',
@@ -169,7 +181,7 @@ describe("Market Simulation as a Test", function() {
         "Tokens Left in Contract": parseFloat(formatEther(tokensLeft)).toLocaleString(),
         "ETH Raised in Contract": parseFloat(formatEther(ethRaised)).toFixed(18),
         "Token Price (ETH)": parseFloat(formatEther(currentPrice)).toFixed(18),
-        "Market Cap (USD)": marketCapInUsd.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),
+        "Market Cap (ETH/USD)": `${parseFloat(formatEther(marketCapInEth)).toFixed(4)} / ${marketCapInUsd.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`,
         "Pot Raised (ETH)": potRaised ? 'YES' : 'NO',
         "Accumulated Pool Fee (ETH)": parseFloat(formatEther(accumulatedPoolFee)).toFixed(18),
       });
@@ -179,6 +191,136 @@ describe("Market Simulation as a Test", function() {
     console.table(sellTableData);
     console.log("  -------------------------------------------------------------------------------------------------------------------");
 
+
+    // Add a simple assertion to make it a valid test
+    const finalEthRaised = await pool.ethRaised();
+    expect(finalEthRaised).to.be.gt(0);
+  });
+
+  it("should simulate a configurable number of buys with a constant buy amount", async function() {
+    this.timeout(120000); // 2 minutes timeout for this simulation
+
+    // --- Config ---
+    const numberOfBuys = 200; // Number of buy transactions
+    const buyAmount = ethers.parseEther("0.028"); // ETH amount for each buy
+    const ethToUsdRate = 3625.92;
+
+    // --- Setup ---
+    console.log(`\n\n===================================================================================================================`);
+    console.log(`  STARTING NEW SIMULATION: ${numberOfBuys} buys of ${formatEther(buyAmount)} ETH each`);
+    console.log(`===================================================================================================================\n`);
+
+
+    const [owner, buyer] = await ethers.getSigners();
+    
+    const tokenName = "MultiBuyer Sim";
+    const tokenSymbol = "MBS";
+    const initialLotteryPool = ethers.parseEther("1.0");
+
+    console.log(`  Deploying contracts for a simulation with ${numberOfBuys} buyers...`);
+    // Deploy Launchpad
+    const TokenLaunchpad = await ethers.getContractFactory("TokenLaunchpad");
+    const launchpad = await TokenLaunchpad.deploy(owner.address);
+    await launchpad.waitForDeployment();
+
+    // Launch a new Pool
+    const tx = await launchpad.launchToken(tokenName, tokenSymbol, initialLotteryPool);
+    const receipt = await tx.wait();
+    
+    const tokenCreatedEvent = receipt.logs.find(log => {
+      return log.eventName === 'TokenCreated';
+    });
+
+    if (!tokenCreatedEvent) {
+      throw new Error("TokenCreated event not found");
+    }
+    const poolAddress = tokenCreatedEvent.args.tokenAddress;
+
+    // Attach to the deployed pool contract
+    const BondingCurvePool = await ethers.getContractFactory("BondingCurvePool");
+    const pool = BondingCurvePool.attach(poolAddress);
+    console.log(`  Pool deployed at: ${pool.target}`);
+    console.log("  -------------------------------------------------------------------------------------------------------------------");
+
+
+    // --- Initial State Logging ---
+    const TAX_RATE_NUMERATOR = 20n;
+    const TAX_RATE_DENOMINATOR = 100n;
+    const liquidityPool = (initialLotteryPool * TAX_RATE_DENOMINATOR) / TAX_RATE_NUMERATOR;
+
+    const vTokenReserve = await pool.virtualTokenReserve();
+    const vEthReserve = await pool.virtualEthReserve();
+    const tokensInContract = await pool.balanceOf(pool.target);
+    const ethInContract = await pool.ethRaised();
+
+    const INITIAL_SUPPLY = await pool.INITIAL_SUPPLY();
+    const initialPrice = await pool.calculateCurrentPrice();
+    const initialCirculatingSupply = INITIAL_SUPPLY - tokensInContract;
+    const initialMarketCapInEth = (initialCirculatingSupply * initialPrice) / (10n ** 18n);
+    const initialMarketCapInUsd = parseFloat(formatEther(initialMarketCapInEth)) * ethToUsdRate;
+
+    console.log("  --- Initial Contract State ---");
+    console.log(`  Conceptual Liquidity Pool: ${formatEther(liquidityPool)} ETH (Calculated from 1 ETH Lottery Pool / 20%)`);
+    console.log(`  Virtual Token Reserve:     ${parseFloat(formatEther(vTokenReserve)).toLocaleString()} tokens`);
+    console.log(`  Virtual ETH Reserve:       ${formatEther(vEthReserve)} ETH`);
+    console.log(`  Tokens in Contract:        ${parseFloat(formatEther(tokensInContract)).toLocaleString()} tokens`);
+    console.log(`  ETH Raised in Contract:    ${formatEther(ethInContract)} ETH`);
+    console.log(`  Initial Token Price:       ${parseFloat(formatEther(initialPrice)).toFixed(18)} ETH`);
+    console.log(`  Initial Market Cap (USD):  ${initialMarketCapInUsd.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`);
+    console.log("  -------------------------------------------------------------------------------------------------------------------");
+
+
+    // --- Simulation ---
+    let tokensSoldTotal = 0n;
+    const buyTableData = [];
+    
+    console.log(`\n  Multi-buy simulation starting... (${numberOfBuys} buys)`);
+    console.log(`  Each buy is for ${formatEther(buyAmount)} ETH.`);
+    console.log(`  Using ETH/USD Rate: $${ethToUsdRate}`);
+    console.log("  -------------------------------------------------------------------------------------------------------------------");
+
+
+    for (let i = 1; i <= numberOfBuys; i++) {
+        const balanceBefore = await pool.balanceOf(buyer.address);
+        await pool.connect(buyer).buy({ value: buyAmount });
+        const balanceAfter = await pool.balanceOf(buyer.address);
+        const tokensReceived = balanceAfter - balanceBefore;
+        
+        tokensSoldTotal += tokensReceived;
+
+      // Log state after each buy
+      const tokensLeft = await pool.balanceOf(pool.target);
+      const ethRaised = await pool.ethRaised();
+      const currentPrice = await pool.calculateCurrentPrice();
+      const potRaised = await pool.potRaised();
+      const accumulatedPoolFee = await pool.accumulatedPoolFee();
+      const vTokenReserveAfter = await pool.virtualTokenReserve();
+      const vEthReserveAfter = await pool.virtualEthReserve();
+
+      const circulatingSupply = INITIAL_SUPPLY - tokensLeft;
+      const marketCapInEth = (circulatingSupply * currentPrice) / (10n ** 18n);
+      const marketCapInUsd = parseFloat(formatEther(marketCapInEth)) * ethToUsdRate;
+
+      buyTableData.push({
+        "Buy #": i,
+        "Buy Amount (ETH)": parseFloat(formatEther(buyAmount)).toFixed(4),
+        "Tokens Received": parseFloat(formatEther(tokensReceived)).toLocaleString(),
+        "Cum Tokens Sold": parseFloat(formatEther(tokensSoldTotal)).toLocaleString(),
+        "Tokens Left": parseFloat(formatEther(tokensLeft)).toLocaleString(),
+        "Virtual Token Reserve": parseFloat(formatEther(vTokenReserveAfter)).toLocaleString(),
+        "Virtual ETH Reserve": parseFloat(formatEther(vEthReserveAfter)).toFixed(4),
+        "Token Price (ETH)": parseFloat(formatEther(currentPrice)).toFixed(18),
+        "Market Cap (ETH/USD)": `${parseFloat(formatEther(marketCapInEth)).toFixed(4)} / ${marketCapInUsd.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`,
+        "ETH Raised": parseFloat(formatEther(ethRaised)).toFixed(18),
+        "Accum Fee": parseFloat(formatEther(accumulatedPoolFee)).toFixed(6),
+        "Pot Raised": potRaised ? 'YES' : 'NO',
+      });
+
+    }
+
+    console.log("\n  --- Multi-Buy Simulation Results ---");
+    console.table(buyTableData);
+    console.log("  -------------------------------------------------------------------------------------------------------------------");
 
     // Add a simple assertion to make it a valid test
     const finalEthRaised = await pool.ethRaised();
