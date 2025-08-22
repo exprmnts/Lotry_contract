@@ -47,47 +47,19 @@ async function main() {
   console.log("\n--- Status Before pullLiquidity ---");
 
   // Check liquidity status
-  let ethRaised = await pool.ethRaised();
-  let contractBalance = await provider.getBalance(CONTRACT_ADDRESS);
-  const ownerTokenBalance = await pool.balanceOf(ownerSigner.address);
-  const contractTokenBalance = await pool.balanceOf(CONTRACT_ADDRESS);
+  var contractTokenBalance = await pool.balanceOf(CONTRACT_ADDRESS);
+  var contractBalance = await provider.getBalance(CONTRACT_ADDRESS);
+  var ownerTokenBalance = await pool.balanceOf(ownerSigner.address);
+  var ownerEthBalance = await provider.getBalance(ownerSigner.address);
 
-  console.log(`ethRaised: ${ethers.formatEther(ethRaised)} ETH`);
+  console.log(`Contract Token Balance: ${ethers.formatUnits(contractTokenBalance, 18)} tokens`);
   console.log(`Contract ETH balance: ${ethers.formatEther(contractBalance)} ETH`);
   console.log(`Owner Token Balance: ${ethers.formatUnits(ownerTokenBalance, 18)} tokens`);
-  console.log(`Contract Token Balance: ${ethers.formatUnits(contractTokenBalance, 18)} tokens`);
+  console.log(`Owner ETH balance: ${ethers.formatEther(ownerEthBalance)} ETH`);
 
-  if (ethRaised === 0n) {
-    console.error("\nNo liquidity to pull. ethRaised is 0. Exiting.");
+  if (contractBalance === 0n) {
+    console.error("\nNo liquidity to pull. Contract ETH balance is 0. Exiting.");
     return;
-  }
-  // If the contract's ETH balance is lower than the recorded ethRaised value,
-  // the pullLiquidity call would revert. We automatically top-up the contract
-  // (via the payable addToLotteryPool function) with the shortfall plus a small
-  // safety buffer so that pullLiquidity can execute successfully without
-  // modifying the underlying smart-contract.
-  if (contractBalance < ethRaised) {
-    const shortfall = ethRaised - contractBalance;
-    // Add an extra 0.001 ETH buffer to account for potential rounding or future state changes
-    const buffer = ethers.parseEther("0.001");
-    const valueToSend = shortfall + buffer;
-
-    console.log(`\nContract balance ( ${ethers.formatEther(contractBalance)} ETH ) is below ethRaised ( ${ethers.formatEther(ethRaised)} ETH ).`);
-    console.log(`Topping up the pool with ${ethers.formatEther(valueToSend)} ETH via addToLotteryPool ...`);
-
-    const topUpTx = await pool.addToLotteryPool({ value: valueToSend });
-    console.log(`Top-up transaction submitted: ${topUpTx.hash}`);
-    await topUpTx.wait();
-    console.log("Top-up confirmed ✅");
-
-    // Refresh on-chain contract balance after top-up
-    contractBalance = await provider.getBalance(CONTRACT_ADDRESS);
-
-    // Sanity check to avoid unexpected reverts
-    if (contractBalance < ethRaised) {
-      console.error("Top-up failed to bring balance above ethRaised. Aborting.");
-      return;
-    }
   }
 
   // Call pullLiquidity
@@ -100,15 +72,15 @@ async function main() {
 
   // --- Post-pull Status ---
   console.log("\n--- Status After pullLiquidity ---");
-  const ethRaisedAfter = await pool.ethRaised();
-  const contractBalanceAfter = await provider.getBalance(CONTRACT_ADDRESS);
-  const ownerTokenBalanceAfter = await pool.balanceOf(ownerSigner.address);
-  const contractTokenBalanceAfter = await pool.balanceOf(CONTRACT_ADDRESS);
+  var contractBalanceAfter = await provider.getBalance(CONTRACT_ADDRESS);
+  var ownerTokenBalanceAfter = await pool.balanceOf(ownerSigner.address);
+  var contractTokenBalanceAfter = await pool.balanceOf(CONTRACT_ADDRESS);
+  var ownerEthBalanceAfter = await provider.getBalance(ownerSigner.address);
 
-  console.log(`ethRaised: ${ethers.formatEther(ethRaisedAfter)} ETH`);
+  console.log(`Contract Token Balance: ${ethers.formatUnits(contractTokenBalanceAfter, 18)} tokens`);
   console.log(`Contract ETH balance: ${ethers.formatEther(contractBalanceAfter)} ETH`);
   console.log(`Owner Token Balance: ${ethers.formatUnits(ownerTokenBalanceAfter, 18)} tokens`);
-  console.log(`Contract Token Balance: ${ethers.formatUnits(contractTokenBalanceAfter, 18)} tokens`);
+  console.log(`Owner ETH balance: ${ethers.formatEther(ownerEthBalanceAfter)} ETH`);
 }
 
 main().catch((error) => {
