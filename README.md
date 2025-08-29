@@ -129,6 +129,9 @@ then,
 ### Test
 ```npx hardhat test .\test\RandomWalletPicker.test.js --network base_sepolia```
 
+### Pull Liquidity
+```npx hardhat run scripts/pullLiquidity.js --network base_sepolia```
+
 ### Creating a Chainlink VRF Subscription
 
 1. Visit ![Chainlink VRF](https://vrf.chain.link/sepolia)

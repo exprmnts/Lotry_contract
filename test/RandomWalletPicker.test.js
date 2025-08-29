@@ -18,7 +18,7 @@ const MOCK_WALLET_ADDRESSES = [
 // Corresponding stakes for each wallet (e.g., number of tickets)
 const MOCK_STAKES = [10, 20, 5, 15, 30, 10, 5, 25, 50, 5]; // Sum = 175
 
-const DEPLOYED_RANDOM_WALLET_PICKER_ADDRESS = "0x0ab7bd90F78D416c95dd9bea80efF397c6030Ec5";
+const DEPLOYED_RANDOM_WALLET_PICKER_ADDRESS = "0x8B700b2cD6Cb3986624A28022a02d4d9B84bAE72";
 
 describe("RandomWalletPicker with Live VRF (Base Sepolia)", function () {
     let randomWalletPicker;

@@ -6,13 +6,16 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
 // import "./RandomWalletPicker.sol";
 
-contract BondingCurvePool is ERC20, Ownable {
+contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard{
     using Math for uint256;
 
     // Constants
     uint256 public constant INITIAL_SUPPLY = 1_000_000_000 * 1e18; // 1 Billion tokens with 18 decimals
+    // Entire initial supply will be available on the curve (no reserved portion)
     uint256 public constant MIN_LOTTERY_POOL = 0.01 ether; // 0.01 ETH minimum
     uint256 public constant MAX_LOTTERY_POOL = 100 ether; // 100 ETH maximum
     uint256 public constant MIN_BUY = 0.001 ether; // Minimum purchase
@@ -20,23 +23,19 @@ contract BondingCurvePool is ERC20, Ownable {
     uint256 private constant ONE_ETHER = 1e18; // For precision in calculations
 
     // Fee Structure Constants (Numerators and Denominators for percentage calculations)
-    // Tax rate for initial price calculation: 22.22%
-    uint256 private constant TAX_RATE_NUMERATOR = 2222;
-    uint256 private constant TAX_RATE_DENOMINATOR = 10000; // 22.22%
+    // Tax rate for initial price calculation: 20%
+    uint256 private constant TAX_RATE_NUMERATOR = 20;
+    // Tax configuration
+    // Phase 1 (before lottery pot is raised): 20% buy & sell tax
+    // Phase 2 (after pot raised): 0% buy tax, 5% sell tax
+    uint256 private constant PRE_GRAD_TAX_NUMERATOR = 20;
+    uint256 private constant POST_GRAD_BUY_TAX_NUMERATOR = 0;
+    uint256 private constant POST_GRAD_SELL_TAX_NUMERATOR = 5;
+    uint256 private constant TAX_DENOMINATOR = 100;
 
-    uint256 private constant LOTTERY_POOL_FEE_NUMERATOR = 20;
-    uint256 private constant LOTTERY_POOL_FEE_DENOMINATOR = 100; // 20%
-
-    uint256 private constant PROTOCOL_POOL_FEE_NUMERATOR = 111;
-    uint256 private constant PROTOCOL_POOL_FEE_DENOMINATOR = 10000; // 1.11%
-
-    uint256 private constant DEV_FEE_NUMERATOR = 111;
-    uint256 private constant DEV_FEE_DENOMINATOR = 10000; // 1.11%
     address public constant PROTOCOL_POOL_ADDRESS = 0x0Df21BEAAadce4893A05503Cee6Ece4d1B087449;
-    address public constant REWARD_DISTRIBUTOR = 0xC43389A2B7eB3e5540FDC734dA7205A215551d01;
 
     // State variables
-    address public devAddress;
     uint256 public initialTokenPrice;
     uint256 public lotteryPool; // Target ETH to be collected
     uint256 public ethRaised; // Total ETH collected by the curve
@@ -47,26 +46,35 @@ contract BondingCurvePool is ERC20, Ownable {
     uint256 public virtualEthReserve;
     
     // Accumulated Taxes/Fees
-    uint256 public accumulatedLotteryTax;
-    uint256 public accumulatedProtocolTax;
-    uint256 public accumulatedDevTax;
-    bool public isLotteryTaxActive = true;
-        
-    event LotteryTaxStatusChanged(bool isActive);
+    uint256 public accumulatedPoolFee;
+
+    // Flag to permanently disable trading after liquidity is pulled
+    bool public liquidityPulled;
+
+    // Tracks whether the lottery pot has been raised — switches tax regime
+    bool public potRaised;
+
+    // Internal helper to flip graduation flag once enough fees have been
+    // accumulated (>= `lotteryPool`). We call this after *every* fee update so
+    // that both buys and sells contribute toward reaching the target.
+    function _updatePotStatus() internal {
+        if (!potRaised && accumulatedPoolFee >= lotteryPool) {
+            potRaised = true;
+            emit Graduated(true);
+        }
+    }
 
     // Events for buy and sell
     event TradeEvent(address indexed tokenAddress, uint256 ethPrice);
-    event RewardsDistributed(address indexed winner, uint256 winnerPrizeAmount, uint256 totalForProtocol, uint256 devTax);
+    event RewardsDistributed(address indexed winner, uint256 winnerPrizeAmount, uint256 protocolAmount);
+    event Graduated(bool status);
 
     constructor(
         string memory name,
         string memory symbol,
         uint256 _initialLotteryPool,
-        address _devAddress,
         address initialOwner
     ) ERC20(name, symbol) Ownable(initialOwner) {
-        require(_devAddress != address(0), "Dev address cannot be zero");
-        devAddress = _devAddress;
 
         require(
             _initialLotteryPool >= MIN_LOTTERY_POOL,
@@ -81,11 +89,13 @@ contract BondingCurvePool is ERC20, Ownable {
         _mint(address(this), INITIAL_SUPPLY);
         
         // Calculate the conceptual liquidity pool size.
-        uint256 liquidityPool = (lotteryPool * TAX_RATE_DENOMINATOR) / TAX_RATE_NUMERATOR;
+        uint256 liquidityPool = (lotteryPool * TAX_DENOMINATOR) / TAX_RATE_NUMERATOR;
         require(liquidityPool > 0, "Liquidity pool must be positive");
 
         // Set curve parameters to meet the economic requirement: selling 800 million tokens returns 110% of the liquidity pool.
-        uint256 V_TOKEN_MULTIPLIER = 10; 
+        // Lowering the virtual token multiplier so that the price grows faster and the
+        // real token reserve can never be fully depleted under realistic volumes.
+        uint256 V_TOKEN_MULTIPLIER = 1;
         virtualTokenReserve = INITIAL_SUPPLY * V_TOKEN_MULTIPLIER;
 
         uint256 tokensToSellForCondition = (INITIAL_SUPPLY * 80) / 100; // 800M tokens
@@ -102,7 +112,7 @@ contract BondingCurvePool is ERC20, Ownable {
         initialTokenPrice = (virtualEthReserve * ONE_ETHER) / virtualTokenReserve;
 
     }
-    
+
     // Calculate current token price based on virtual reserves
     function calculateCurrentPrice() public view returns (uint256) {
         if (virtualTokenReserve == 0) return type(uint256).max; // Indicate effectively infinite price
@@ -129,6 +139,7 @@ contract BondingCurvePool is ERC20, Ownable {
     // Calculate how much ETH will be returned for a given token amount
     function calculateSellReturn(uint256 tokenAmount) public view returns (uint256) {
         require(tokenAmount > 0, "Token amount must be > 0");
+        require(balanceOf(address(this)) + tokenAmount <= INITIAL_SUPPLY, "Sell exceeds initial supply");
         if (virtualTokenReserve == 0) return virtualEthReserve;
         
         uint256 k_scaled = constant_k * ONE_ETHER;
@@ -144,43 +155,35 @@ contract BondingCurvePool is ERC20, Ownable {
     }
 
     // Buy tokens with ETH
-    function buy() public payable {
+    function buy() public payable nonReentrant {
         require(msg.value >= MIN_BUY, "Below minimum buy amount");
         
         uint256 grossEthAmount = msg.value;
-        uint256 totalFeesPaid = 0;
-        uint256 lotteryFeeApplied = 0;
+        require(!liquidityPulled, "Trading disabled");
 
-        // Apply fees
-        if (isLotteryTaxActive) {
-            lotteryFeeApplied = (grossEthAmount * LOTTERY_POOL_FEE_NUMERATOR) / LOTTERY_POOL_FEE_DENOMINATOR;
-            accumulatedLotteryTax += lotteryFeeApplied;
-            totalFeesPaid += lotteryFeeApplied;
-
-            if (accumulatedLotteryTax >= lotteryPool) {
-                isLotteryTaxActive = false;
-                emit LotteryTaxStatusChanged(false);
-            }
+        uint256 poolFee;
+        if (potRaised) {
+            // Phase 2 – no buy tax
+            poolFee = (grossEthAmount * POST_GRAD_BUY_TAX_NUMERATOR) / TAX_DENOMINATOR; // 0
+        } else {
+            // Phase 1 – 20% buy tax
+            poolFee = (grossEthAmount * PRE_GRAD_TAX_NUMERATOR) / TAX_DENOMINATOR;
+        }
+        if (poolFee > 0) {
+            accumulatedPoolFee += poolFee;
         }
 
-        uint256 protocolFee = (grossEthAmount * PROTOCOL_POOL_FEE_NUMERATOR) / PROTOCOL_POOL_FEE_DENOMINATOR;
-        accumulatedProtocolTax += protocolFee;
-        totalFeesPaid += protocolFee;
-
-        uint256 devFee = (grossEthAmount * DEV_FEE_NUMERATOR) / DEV_FEE_DENOMINATOR;
-        accumulatedDevTax += devFee;
-        totalFeesPaid += devFee;
-
-        require(grossEthAmount > totalFeesPaid, "Fees exceed sent amount");
-        uint256 netEthForCurve = grossEthAmount - totalFeesPaid;
+        uint256 netEthForCurve = grossEthAmount - poolFee;
         
         uint256 tokensToTransfer = calculateBuyReturn(netEthForCurve);
         require(tokensToTransfer > 0, "Would receive zero tokens for net ETH");
-        
-        require(tokensToTransfer <= balanceOf(address(this)), "Purchase exceeds available supply");
+        // Ensure the contract has enough real tokens left to honour the buy.
+        require(tokensToTransfer <= balanceOf(address(this)), "Insufficient token reserves");
         
         // Update state
         ethRaised += netEthForCurve; 
+        // Check graduation based on fee accumulation
+        _updatePotStatus();
         
         virtualEthReserve += netEthForCurve; 
         virtualTokenReserve -= tokensToTransfer;
@@ -193,23 +196,38 @@ contract BondingCurvePool is ERC20, Ownable {
     }
 
     // Sell tokens to get ETH back
-    function sell(uint256 tokenAmount) public {
+    function sell(uint256 tokenAmount) public nonReentrant  {
         require(tokenAmount > 0, "Must sell more than 0 tokens");
         require(balanceOf(msg.sender) >= tokenAmount, "Not enough tokens to sell");   
 
-        uint256 ethToReturn = calculateSellReturn(tokenAmount);
-        require(ethToReturn > 0, "Would receive zero ETH");
-        require(ethToReturn <= virtualEthReserve, "Sell amount exceeds curve's virtual ETH reserve");
+        uint256 ethToReturnGross = calculateSellReturn(tokenAmount);
+        require(ethToReturnGross > 0, "Would receive zero ETH");
+        require(ethToReturnGross <= virtualEthReserve, "Sell amount exceeds curve's virtual ETH reserve");
+
+        require(!liquidityPulled, "Trading disabled");
+
+        uint256 sellFee;
+        if (potRaised) {
+            sellFee = (ethToReturnGross * POST_GRAD_SELL_TAX_NUMERATOR) / TAX_DENOMINATOR; // 5%
+        } else {
+            sellFee = (ethToReturnGross * PRE_GRAD_TAX_NUMERATOR) / TAX_DENOMINATOR; // 20%
+        }
+        
+        accumulatedPoolFee += sellFee;
+        _updatePotStatus();
+        
+        require(ethToReturnGross > sellFee, "Fee exceeds return amount");
+        uint256 ethToReturnNet = ethToReturnGross - sellFee;
 
         // Update state
         _transfer(msg.sender, address(this), tokenAmount);
         
-        ethRaised -= ethToReturn;
+        ethRaised -= ethToReturnNet;
 
         virtualTokenReserve += tokenAmount;
-        virtualEthReserve -= ethToReturn;
+        virtualEthReserve -= ethToReturnNet;
         
-        payable(msg.sender).transfer(ethToReturn);
+        payable(msg.sender).transfer(ethToReturnNet);
         
         uint256 currentPrice = calculateCurrentPrice();
         emit TradeEvent(address(this), currentPrice);
@@ -227,46 +245,49 @@ contract BondingCurvePool is ERC20, Ownable {
         lotteryPool += _value;
     }
 
-    function distributeRewards(address winner) public {
-        require(msg.sender == REWARD_DISTRIBUTOR, "Caller is not the reward distributor");
+    function distributeRewards(address winner) public onlyOwner {
         require(winner != address(0), "Winner address cannot be zero");
 
-        // Readings from storage to memory
-        uint256 totalLotteryTax = accumulatedLotteryTax;
-        uint256 protocolTax = accumulatedProtocolTax;
-        uint256 devTax = accumulatedDevTax;
+        uint256 feesToDistribute = accumulatedPoolFee;
+        accumulatedPoolFee = 0;
 
-        // Reset accumulated values in storage
-        accumulatedLotteryTax = 0;
-        accumulatedProtocolTax = 0;
-        accumulatedDevTax = 0;
-
-        // Calculations
-        uint256 winnerPrizeAmount;
-        uint256 remainderForProtocol = 0;
-
-        if (totalLotteryTax >= lotteryPool) {
-            // Target met or exceeded. Winner gets the fixed prize.
-            winnerPrizeAmount = lotteryPool;
-            remainderForProtocol = totalLotteryTax - lotteryPool;
-        } else {
-            // Target not met. Winner gets whatever has been collected.
-            winnerPrizeAmount = totalLotteryTax;
-        }
-
-        uint256 totalForProtocol = remainderForProtocol + protocolTax;
+        uint256 winnerPrizeAmount = (feesToDistribute * 80) / 100;
+        uint256 protocolAmount = feesToDistribute - winnerPrizeAmount;
 
         // Transfers
         if (winnerPrizeAmount > 0) {
             payable(winner).transfer(winnerPrizeAmount);
         }
-        if (totalForProtocol > 0) {
-            payable(PROTOCOL_POOL_ADDRESS).transfer(totalForProtocol);
-        }
-        if (devTax > 0) {
-            payable(devAddress).transfer(devTax);
+        if (protocolAmount > 0) {
+            payable(PROTOCOL_POOL_ADDRESS).transfer(protocolAmount);
         }
 
-        emit RewardsDistributed(winner, winnerPrizeAmount, totalForProtocol, devTax);
+        emit RewardsDistributed(winner, winnerPrizeAmount, protocolAmount);
+    }
+
+    // Pulls whatever ETH balance the contract currently holds (even if it is
+    // lower than the recorded `ethRaised` value). This protects against cases
+    // where rewards or external calls have reduced the balance beneath
+    // `ethRaised`, causing the original implementation to revert.
+    //
+    // After withdrawal, `ethRaised` is set to 0 and trading is permanently
+    // disabled via `liquidityPulled`.
+    function pullLiquidity() external onlyOwner nonReentrant {
+        require(!liquidityPulled, "Liquidity already pulled");
+
+        uint256 amount = address(this).balance;
+        require(amount > 0, "No liquidity to pull");
+
+        // Reset ethRaised to 0 since we're winding down the pool
+        ethRaised = 0;
+
+        // Mark trading as permanently disabled
+        liquidityPulled = true;
+
+        // Transfer any remaining tokens in contract to the owner
+        _transfer(address(this), owner(), balanceOf(address(this)));
+
+        // Transfer whatever ETH is left in the contract to the owner
+        payable(owner()).transfer(amount);
     }
 }
