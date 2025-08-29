@@ -11,7 +11,12 @@ module.exports = {
     base_sepolia: {
       url: process.env.BASE_SEPOLIA_RPC_URL,
       accounts:[process.env.PRIVATE_KEY],
-      chainId: 84532, // Base Sepolia chain ID
+      chainId: 84532,
+    },
+    base: {
+      url: process.env.BASE_RPC_URL,
+      accounts:[process.env.PRIVATE_KEY],
+      chainId: 8453,
     },
   },
   etherscan: {

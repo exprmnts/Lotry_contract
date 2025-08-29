@@ -1,9 +1,9 @@
 const { ethers } = require("hardhat");
 
 // Base Sepolia VRF Coordinator address
-const BASE_SEPOLIA_VRF_COORDINATOR = process.env.VRF_COORDINATOR_BASE_SEPOLIA;
+const BASE_VRF_COORDINATOR = process.env.VRF_COORDINATOR_BASE;
 // Base Sepolia VRF KeyHash (This is often for a specific gas price, e.g., 500 Gwei on the vrf.chain.link UI for Base Sepolia)
-const BASE_SEPOLIA_KEY_HASH = process.env.KEY_HASH_BASE_SEPOLIA;
+const BASE_KEY_HASH = process.env.KEY_HASH_BASE;
 
 async function main() {
   const [deployer] = await ethers.getSigners();
@@ -14,12 +14,12 @@ async function main() {
 
   // You need to create a subscription ID through the Chainlink VRF UI for Base Sepolia
   // and add your contract as a consumer AFTER deployment.
-  // Go to: https://vrf.chain.link/ (and select Base Sepolia network)
-  const subscriptionId = process.env.SUBSCRIPTION_ID_BASE_SEPOLIA;
+  // Go to: https://vrf.chain.link/ 
+  const subscriptionId = process.env.SUBSCRIPTION_ID_BASE;
 
   if (subscriptionId === undefined) {
     console.error("ERROR: You MUST set your actual VRF subscription ID for Base Sepolia.");
-    console.error("Create a subscription at https://vrf.chain.link/ (select Base Sepolia) and set BASE_SEPOLIA_SUBSCRIPTION_ID environment variable or update the script.");
+    console.error("Create a subscription at https://vrf.chain.link/ (select Base Sepolia) and set BASE_SUBSCRIPTION_ID environment variable or update the script.");
     process.exit(1);
   }
 
@@ -28,14 +28,14 @@ async function main() {
   // Deploy the RandomWalletPicker contract
   const RandomWalletPicker = await ethers.getContractFactory("RandomWalletPicker");
   console.log("Deploying contract with:");
-  console.log(`  VRF Coordinator (Base Sepolia): ${BASE_SEPOLIA_VRF_COORDINATOR}`);
+  console.log(`  VRF Coordinator (Base Sepolia): ${BASE_VRF_COORDINATOR}`);
   console.log(`  Subscription ID: ${subscriptionId}`);
-  console.log(`  Key Hash (Base Sepolia): ${BASE_SEPOLIA_KEY_HASH}`);
+  console.log(`  Key Hash (Base Sepolia): ${BASE_KEY_HASH}`);
 
   const randomWalletPicker = await RandomWalletPicker.deploy(
-    BASE_SEPOLIA_VRF_COORDINATOR,
+    BASE_VRF_COORDINATOR,
     subscriptionId,
-    BASE_SEPOLIA_KEY_HASH
+    BASE_KEY_HASH
   );
 
   await randomWalletPicker.waitForDeployment();
