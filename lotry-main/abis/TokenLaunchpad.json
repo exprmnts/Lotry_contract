@@ -105,8 +105,7 @@
         "internalType": "uint256",
         "name": "initialLotteryPool",
         "type": "uint256"
-      },
-      { "internalType": "address", "name": "devAddress", "type": "address" }
+      }
     ],
     "name": "launchToken",
     "outputs": [{ "internalType": "address", "name": "", "type": "address" }],

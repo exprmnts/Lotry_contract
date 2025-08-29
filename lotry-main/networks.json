@@ -1,0 +1,11 @@
+{
+  "base": {
+    "TokenLaunchpad": {
+      "address": "0xe60e8e66ef394080144711bda9a86de63b679888",
+      "startBlock": 34850982
+    },
+    "BondingCurvePool": {
+      "address": "0x0bD28878f9547E2Cd598F858D137b520b0D5aE6a"
+    }
+  }
+}

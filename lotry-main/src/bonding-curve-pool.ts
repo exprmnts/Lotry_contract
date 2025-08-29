@@ -1,14 +1,14 @@
 import {
   Approval as ApprovalEvent,
-  LotteryTaxStatusChanged as LotteryTaxStatusChangedEvent,
+  Graduated as GraduatedEvent,
   OwnershipTransferred as OwnershipTransferredEvent,
   RewardsDistributed as RewardsDistributedEvent,
   TradeEvent as TradeEventEvent,
   Transfer as TransferEvent,
-} from "../generated/BondingCurvepool/BondingCurvepool"
+} from "../generated/BondingCurvePool/BondingCurvePool"
 import {
   Approval,
-  LotteryTaxStatusChanged,
+  Graduated,
   OwnershipTransferred,
   RewardsDistributed,
   TradeEvent,
@@ -30,13 +30,11 @@ export function handleApproval(event: ApprovalEvent): void {
   entity.save()
 }
 
-export function handleLotteryTaxStatusChanged(
-  event: LotteryTaxStatusChangedEvent,
-): void {
-  let entity = new LotteryTaxStatusChanged(
+export function handleGraduated(event: GraduatedEvent): void {
+  let entity = new Graduated(
     event.transaction.hash.concatI32(event.logIndex.toI32()),
   )
-  entity.isActive = event.params.isActive
+  entity.status = event.params.status
 
   entity.blockNumber = event.block.number
   entity.blockTimestamp = event.block.timestamp
@@ -67,8 +65,7 @@ export function handleRewardsDistributed(event: RewardsDistributedEvent): void {
   )
   entity.winner = event.params.winner
   entity.winnerPrizeAmount = event.params.winnerPrizeAmount
-  entity.totalForProtocol = event.params.totalForProtocol
-  entity.devTax = event.params.devTax
+  entity.protocolAmount = event.params.protocolAmount
 
   entity.blockNumber = event.block.number
   entity.blockTimestamp = event.block.timestamp

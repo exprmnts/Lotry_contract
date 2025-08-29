@@ -6,11 +6,11 @@ schema:
 dataSources:
   - kind: ethereum
     name: TokenLaunchpad
-    network: base-sepolia
+    network: base
     source:
-      address: "0x38eade322F5dE73DC5bc553528bC51ae15FAee1D"
+      address: "0xe60e8e66ef394080144711bda9a86de63b679888"
       abi: TokenLaunchpad
-      startBlock: 27207980
+      startBlock: 34850982
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
@@ -30,14 +30,14 @@ dataSources:
 templates:
   - name: BondingCurvePool
     kind: ethereum/contract
-    network: base-sepolia
+    network: base
     source:
       abi: BondingCurvePool
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
       language: wasm/assemblyscript
-      file: ./src/bonding-curvepool.ts
+      file: ./src/bonding-curve-pool.ts
       entities:
         - TradeEvent
       abis:
@@ -46,4 +46,3 @@ templates:
       eventHandlers:
         - event: TradeEvent(indexed address,uint256)
           handler: handleTradeEvent
-

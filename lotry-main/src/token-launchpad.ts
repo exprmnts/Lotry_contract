@@ -22,7 +22,6 @@ export function handleOwnershipTransferred(
 }
 
 export function handleTokenCreated(event: TokenCreatedEvent): void {
-
   BondingCurvePoolTemplate.create(event.params.tokenAddress)
 
   let entity = new TokenCreated(

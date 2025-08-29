@@ -8,7 +8,6 @@
         "name": "_initialLotteryPool",
         "type": "uint256"
       },
-      { "internalType": "address", "name": "_devAddress", "type": "address" },
       { "internalType": "address", "name": "initialOwner", "type": "address" }
     ],
     "stateMutability": "nonpayable",
@@ -74,6 +73,7 @@
     "name": "OwnableUnauthorizedAccount",
     "type": "error"
   },
+  { "inputs": [], "name": "ReentrancyGuardReentrantCall", "type": "error" },
   {
     "anonymous": false,
     "inputs": [
@@ -105,11 +105,11 @@
       {
         "indexed": false,
         "internalType": "bool",
-        "name": "isActive",
+        "name": "status",
         "type": "bool"
       }
     ],
-    "name": "LotteryTaxStatusChanged",
+    "name": "Graduated",
     "type": "event"
   },
   {
@@ -149,13 +149,7 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "totalForProtocol",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "devTax",
+        "name": "protocolAmount",
         "type": "uint256"
       }
     ],
@@ -243,28 +237,7 @@
   },
   {
     "inputs": [],
-    "name": "REWARD_DISTRIBUTOR",
-    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "accumulatedDevTax",
-    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "accumulatedLotteryTax",
-    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "accumulatedProtocolTax",
+    "name": "accumulatedPoolFee",
     "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
     "stateMutability": "view",
     "type": "function"
@@ -352,13 +325,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "devAddress",
-    "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       { "internalType": "address", "name": "winner", "type": "address" }
     ],
@@ -383,7 +349,7 @@
   },
   {
     "inputs": [],
-    "name": "isLotteryTaxActive",
+    "name": "liquidityPulled",
     "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
     "stateMutability": "view",
     "type": "function"
@@ -407,6 +373,20 @@
     "name": "owner",
     "outputs": [{ "internalType": "address", "name": "", "type": "address" }],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "potRaised",
+    "outputs": [{ "internalType": "bool", "name": "", "type": "bool" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "pullLiquidity",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
