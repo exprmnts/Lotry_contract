@@ -18,7 +18,8 @@ const MOCK_WALLET_ADDRESSES = [
 // Corresponding stakes for each wallet (e.g., number of tickets)
 const MOCK_STAKES = [10, 20, 5, 15, 30, 10, 5, 25, 50, 5]; // Sum = 175
 
-const DEPLOYED_RANDOM_WALLET_PICKER_ADDRESS = "0x8B700b2cD6Cb3986624A28022a02d4d9B84bAE72";
+// const DEPLOYED_RANDOM_WALLET_PICKER_ADDRESS = "0x5747b6ABf926714F51966f3F0Ac723fb35A4ce7D"; // 30 gwei
+const DEPLOYED_RANDOM_WALLET_PICKER_ADDRESS = "0xA8Ef9276e27BdbBe3Da532ac8055Dc427886f59c"; // 2 gwei
 
 describe("RandomWalletPicker with Live VRF (Base Sepolia)", function () {
     let randomWalletPicker;
@@ -110,36 +111,11 @@ describe("RandomWalletPicker with Live VRF (Base Sepolia)", function () {
             const receipt = await tx.wait(1);
             console.log("pickRandomWallet transaction confirmed.");
 
-            // Get our request ID using the robust queryFilter method.
-            console.log(`Searching for RandomnessRequested event in block ${receipt.blockNumber}...`);
-            
-            // Query from the transaction's block to the latest block to account for RPC node delays.
-            const eventFilter = randomWalletPicker.filters.RandomnessRequested();
-            const events = await randomWalletPicker.queryFilter(eventFilter, receipt.blockNumber, 'latest');
-
-            console.log(`Found ${events.length} RandomnessRequested event(s) since the transaction's block.`);
-            if (events.length > 0) {
-                console.log("--- Raw Event Data ---");
-                // The event.args object from ethers contains BigInts for uint256 values.
-                // JSON.stringify() cannot serialize BigInts, which was causing the test to crash.
-                // We use a replacer function to convert BigInts to strings during serialization.
-                const replacer = (key, value) => (typeof value === "bigint" ? value.toString() : value);
-                events.forEach((event, index) => {
-                    console.log(`Event[${index}]:`);
-                    console.log(`  tx hash: ${event.transactionHash}`);
-                    console.log(`  args: ${JSON.stringify(event.args, replacer)}`);
-                });
-                console.log("----------------------");
-            }
-
-            let ourRequestId;
-            for (const event of events) {
-                if (event.transactionHash.toLowerCase() === tx.hash.toLowerCase()) {
-                    console.log("Matching event found!");
-                    ourRequestId = event.args.requestId;
-                    break;
-                }
-            }
+            // The most reliable way to get the event is from the transaction receipt itself.
+            // Using queryFilter can be unreliable on live networks due to RPC node latency.
+            const requestedEvent = receipt.logs.find(e => e.eventName === 'RandomnessRequested');
+            expect(requestedEvent, "Could not find the RandomnessRequested event in the transaction receipt").to.not.be.undefined;
+            const ourRequestId = requestedEvent.args.requestId;
 
             expect(ourRequestId, "Could not find ourRequestId from the RandomnessRequested event").to.not.be.undefined;
 
