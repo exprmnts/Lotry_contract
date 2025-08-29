@@ -2,12 +2,12 @@ import { newMockEvent } from "matchstick-as"
 import { ethereum, Address, BigInt } from "@graphprotocol/graph-ts"
 import {
   Approval,
-  LotteryTaxStatusChanged,
+  Graduated,
   OwnershipTransferred,
   RewardsDistributed,
   TradeEvent,
   Transfer
-} from "../generated/BondingCurvepool/BondingCurvepool"
+} from "../generated/BondingCurvePool/BondingCurvePool"
 
 export function createApprovalEvent(
   owner: Address,
@@ -31,19 +31,16 @@ export function createApprovalEvent(
   return approvalEvent
 }
 
-export function createLotteryTaxStatusChangedEvent(
-  isActive: boolean
-): LotteryTaxStatusChanged {
-  let lotteryTaxStatusChangedEvent =
-    changetype<LotteryTaxStatusChanged>(newMockEvent())
+export function createGraduatedEvent(status: boolean): Graduated {
+  let graduatedEvent = changetype<Graduated>(newMockEvent())
 
-  lotteryTaxStatusChangedEvent.parameters = new Array()
+  graduatedEvent.parameters = new Array()
 
-  lotteryTaxStatusChangedEvent.parameters.push(
-    new ethereum.EventParam("isActive", ethereum.Value.fromBoolean(isActive))
+  graduatedEvent.parameters.push(
+    new ethereum.EventParam("status", ethereum.Value.fromBoolean(status))
   )
 
-  return lotteryTaxStatusChangedEvent
+  return graduatedEvent
 }
 
 export function createOwnershipTransferredEvent(
@@ -71,8 +68,7 @@ export function createOwnershipTransferredEvent(
 export function createRewardsDistributedEvent(
   winner: Address,
   winnerPrizeAmount: BigInt,
-  totalForProtocol: BigInt,
-  devTax: BigInt
+  protocolAmount: BigInt
 ): RewardsDistributed {
   let rewardsDistributedEvent = changetype<RewardsDistributed>(newMockEvent())
 
@@ -89,12 +85,9 @@ export function createRewardsDistributedEvent(
   )
   rewardsDistributedEvent.parameters.push(
     new ethereum.EventParam(
-      "totalForProtocol",
-      ethereum.Value.fromUnsignedBigInt(totalForProtocol)
+      "protocolAmount",
+      ethereum.Value.fromUnsignedBigInt(protocolAmount)
     )
-  )
-  rewardsDistributedEvent.parameters.push(
-    new ethereum.EventParam("devTax", ethereum.Value.fromUnsignedBigInt(devTax))
   )
 
   return rewardsDistributedEvent
