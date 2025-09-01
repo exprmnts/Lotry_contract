@@ -105,8 +105,17 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard{
         }
     }
 
-function getWhitelistArray() external view returns (address[] memory) {
-    return whitelistArray;
+    function getWhitelistArray() external view returns (address[] memory) {
+        return whitelistArray;
+    }
+
+    function isWhitelisted(address _address) external view returns (bool) {
+        return whitelist[_address];
+    }
+
+
+function getWhitelistLength() external view returns (uint256) {
+    return whitelistArray.length;
 }
 
     // Internal helper to flip graduation flag once enough fees have been
