@@ -3,14 +3,18 @@ const { expect } = require("chai");
 
 async function main() {
   // Replace with your deployed contract address
-  const CONTRACT_ADDRESS = "0x38eade322F5dE73DC5bc553528bC51ae15FAee1D";
+  const CONTRACT_ADDRESS = "0x628172814ba02dD6B5895064c1Edb0c7845Ec1e1";
 
   console.log("Interacting with Counter contract on Sepolia...");
   console.log("Contract Address:", CONTRACT_ADDRESS);
 
   // Get the signer
-  const [signer] = await ethers.getSigners();
+  const [signer, signer2] = await ethers.getSigners();
   console.log("Using account:", signer.address);
+
+  const privateKey = "a5a40200195562d4761f0f3c0deefece3d5cadff6c12854e1ab2f34c9d59a1f2"
+  const newSigner = new ethers.Wallet(privateKey, ethers.provider);
+  console.log("Using account:", newSigner.address);
 
   // Get contract instance
   const Launchpad = await ethers.getContractFactory("TokenLaunchpad");
@@ -25,7 +29,7 @@ async function main() {
     console.log("----LauchToken----");
 
     // Launch a new Pool using the Launchpad
-    let tx = await launchpad.launchToken(tokenName, tokenSymbol, initialLotteryPool, signer.address);
+    let tx = await launchpad.launchToken(tokenName, tokenSymbol, initialLotteryPool);
     const receipt = await tx.wait();
 
     // Method 1: Parse events from transaction receipt
@@ -63,6 +67,7 @@ async function main() {
       console.log("  Token Name:", tokenCreatedEvent.args.name);
       console.log("  Token Symbol:", tokenCreatedEvent.args.symbol);
 
+
       const poolAddress = tokenCreatedEvent.args.tokenAddress;
 
       console.log("\n----BUY----");
@@ -71,8 +76,60 @@ async function main() {
       const BondingCurvePool = await ethers.getContractFactory("BondingCurvePool");
       const pool = BondingCurvePool.attach(poolAddress);
 
+      console.log("Whitelist")
+      // try {
+      //   const whitelistEnabled = await pool.whitelistEnabled();
+      //   console.log("Whitelist enabled:", whitelistEnabled);
+      // } catch (error) {
+      //   console.log("Whitelist functions not found on deployed contract:", error.message);
+      //   return; // Exit early if functions don't exist
+      // }
+
+      try {
+        console.log("Enabling whitelist...");
+        await pool.enableWhitelist(true);
+        console.log("Whitelist enabled:", await pool.whitelistEnabled());
+      } catch (error) {
+        console.log("Whitelist Enabling", error.message);
+      }
+
+      const addressesToAdd = [
+        "0x3513C0F1420b7D4793158Ae5eb5985BBf34d5911",
+        "0x0C82d6C3f6bEdFE87E7f90f357308E25b574b85b",
+        "0x8fE6509E8E7954B4848772e989829a958805a2B4",
+        "0x9dbbBfBb5e2b1b2C5754becECa4E1e473b852a65",
+        "0x19f3b78038C070030e0Cf4953EDe53aF1f0CB00E"
+      ];
+
+      try {
+        console.log("Adding addresses to whitelist...");
+        const tx = await pool.addMultipleToWhitelist(addressesToAdd);
+        await tx.wait();
+        console.log("Addresses added successfully");
+
+        const whitelistArray = await pool.getWhitelistArray();
+        console.log("Whitelist addresses:", whitelistArray);
+      } catch (error) {
+        console.error("Error adding to whitelist:", error.message);
+        // Continue without whitelist if it fails
+      }
+
+      try {
+        const length = await pool.getWhitelistLength();
+        console.log("Whitelist length:", length.toString());
+      } catch (error) {
+        console.error("getWhitelistLength failed:", error.message);
+      }
+
+      try {
+        const array = await pool.getWhitelistArray();
+        console.log("Whitelist array:", array);
+      } catch (error) {
+        console.error("getWhitelistArray failed:", error.message);
+      }
+
       // Execute buy transaction
-      const buyTx = await pool.connect(signer).buy({ value: buyAmount });
+      const buyTx = await pool.connect(newSigner).buy({ value: buyAmount });
       const buyReceipt = await buyTx.wait();
 
       // Parse buy events
