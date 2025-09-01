@@ -54,6 +54,61 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard{
     // Tracks whether the lottery pot has been raised — switches tax regime
     bool public potRaised;
 
+
+    // whitelist
+    mapping(address => bool) public whitelist;
+    address[] public whitelistArray;
+    bool public whitelistEnabled = false;
+
+    modifier onlyWhitelisted() {
+        if (whitelistEnabled) {
+            require(whitelist[msg.sender], "Address not whitelisted");
+        }
+        _;
+    }
+
+    function enableWhitelist(bool _enabled) external onlyOwner {
+        whitelistEnabled = _enabled;
+    }
+
+    function addToWhitelist(address _address) external onlyOwner {
+        require(_address != address(0), "Cannot whitelist zero address");
+        require(!whitelist[_address], "Address already whitelisted");
+        
+        whitelist[_address] = true;
+        whitelistArray.push(_address);
+    }
+
+    function removeFromWhitelist(address _address) external onlyOwner {
+        require(whitelist[_address], "Address not whitelisted");
+        
+        whitelist[_address] = false;
+        
+        // Remove from array - find and replace with last element
+        for (uint256 i = 0; i < whitelistArray.length; i++) {
+            if (whitelistArray[i] == _address) {
+                whitelistArray[i] = whitelistArray[whitelistArray.length - 1];
+                whitelistArray.pop();
+                break;
+            }
+        }
+    }
+
+    function addMultipleToWhitelist(address[] calldata _addresses) external onlyOwner {
+        for (uint256 i = 0; i < _addresses.length; i++) {
+            address addr = _addresses[i];
+            require(addr != address(0), "Cannot whitelist zero address");
+            if (!whitelist[addr]) {
+                whitelist[addr] = true;
+                whitelistArray.push(addr);
+            }
+        }
+    }
+
+function getWhitelistArray() external view returns (address[] memory) {
+    return whitelistArray;
+}
+
     // Internal helper to flip graduation flag once enough fees have been
     // accumulated (>= `lotteryPool`). We call this after *every* fee update so
     // that both buys and sells contribute toward reaching the target.
@@ -155,7 +210,7 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard{
     }
 
     // Buy tokens with ETH
-    function buy() public payable nonReentrant {
+    function buy() public payable nonReentrant onlyWhitelisted {
         require(msg.value >= MIN_BUY, "Below minimum buy amount");
         
         uint256 grossEthAmount = msg.value;
@@ -196,7 +251,7 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard{
     }
 
     // Sell tokens to get ETH back
-    function sell(uint256 tokenAmount) public nonReentrant  {
+    function sell(uint256 tokenAmount) public nonReentrant onlyWhitelisted  {
         require(tokenAmount > 0, "Must sell more than 0 tokens");
         require(balanceOf(msg.sender) >= tokenAmount, "Not enough tokens to sell");   
 
