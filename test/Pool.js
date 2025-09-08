@@ -153,8 +153,9 @@ describe("Launchpad and Pool Integration Tests", function() {
     it("Should switch tax rates after lottery pot is raised", async function() {
       const buyer = addr1;
 
-      // Buy enough so that net ETH added to curve >= lotteryPool (1 ETH configured in beforeEach)
-      const firstBuy = parseEther("2.0");
+      // Buy enough so that accumulated fees >= lotteryPool (1 ETH configured in beforeEach)
+      // With 20% buy tax, a 5 ETH buy will generate 1 ETH in fees.
+      const firstBuy = parseEther("5.0");
       await pool.connect(buyer).buy({ value: firstBuy });
 
       // Pot should now be marked as raised
@@ -269,6 +270,8 @@ describe("Launchpad and Pool Integration Tests", function() {
       expect(ethRaisedBefore).to.be.gt(0);
 
       const poolAddress = await pool.getAddress();
+      const contractBalanceBefore = await ethers.provider.getBalance(poolAddress);
+      
       const tokenInContractBefore = await pool.balanceOf(poolAddress);
       console.log("token in contract before pullLiquidity:", tokenInContractBefore);
       const tokensBefore = await pool.balanceOf(owner);
@@ -276,8 +279,8 @@ describe("Launchpad and Pool Integration Tests", function() {
       const ethBalanceBefore = await ethers.provider.getBalance(owner)
       console.log("ETH balance before pullLiquidity:", ethBalanceBefore);
 
-      // Pull liquidity and check that owner's balance increased by ethRaised amount
-      await expect(pool.connect(owner).pullLiquidity()).to.changeEtherBalance(owner, ethRaisedBefore);
+      // Pull liquidity and check that owner's balance increased by the contract's full balance
+      await expect(pool.connect(owner).pullLiquidity()).to.changeEtherBalance(owner, contractBalanceBefore);
 
       // After liquidity is pulled, trading should be disabled
       await expect(pool.connect(addr1).buy({ value: parseEther("1.0") })).to.be.revertedWith("Trading disabled");
