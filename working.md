@@ -2,116 +2,69 @@
 
 ## 1. Model
 
-We use a **constant-product bonding curve**
+We use a **constant-product bonding curve** defined by the invariant:
 
-\[ x\;\cdot\;y = k \]
+\[ (V_T - S_c) \cdot (V_E + E_r) = k \]
 
-where 
-* `x`   – virtual token reserve \(v_{token}\)
-* `y`   – virtual Ether reserve \(v_{eth}\)
-* `k`   – invariant fixed at deployment (`k = v_token * v_eth`)
+where:
+*   \(V_T\) – Virtual Token Reserve (constant)
+*   \(V_E\) – Virtual ETH Reserve (constant)
+*   \(S_c\) – Circulating Supply of tokens
+*   \(E_r\) – ETH Raised by the curve
+*   \(k\)   – The invariant, calculated at deployment: \(k = V_T \cdot V_E\)
 
-The **spot price** (in ETH per token) is
+The **spot price** \(P\) in ETH per token is the ratio of the effective reserves:
 
-\[ P = \frac{y}{x} \]
+\[ P = \frac{V_E + E_r}{V_T - S_c} \]
 
-Because both reserves are tracked with 18 decimals, the Solidity code scales by `1e18` to avoid precision loss.
+Substituting the invariant, we can express the price as a function of the circulating supply:
 
-### Buy (ETH → Tokens)
-```
-y' = y + Δy                       // add ETH
-x' = k / y'                       // solve x·y = k
-T  = x − x'                       // tokens to send to buyer
-```
+\[ P(S_c) = \frac{k}{(V_T - S_c)^2} \]
 
-### Sell (Tokens → ETH)
-```
-x' = x + Δx                       // add tokens
-y' = k / x'                       // solve for new y
-E  = y − y'                       // ETH returned to seller
-```
-Both operations move **along** the same curve – nothing can drain the pool completely because x or y only approach 0 asymptotically.
+## 2. Constructor Math: Targeting a 20x Price Increase
 
----
+We set the curve parameters to achieve a **20x price increase** when **500 million tokens** (50% of the initial supply) have been sold.
 
-## 2. Constructor Math
+Let:
+*   \(P_0\) be the initial price at \(S_c = 0\).
+*   \(P_f\) be the final price when \(S_c = S_{target} = 500 \cdot 10^6\) tokens.
 
-We want the following business rule:
-*“If 800 M of the 1 B supply are sold, sellers can withdraw 110 % of the liquidity-pool value.”*
+The price ratio is:
+\[ \frac{P_f}{P_0} = \frac{k / (V_T - S_{target})^2}{k / (V_T - 0)^2} = \left(\frac{V_T}{V_T - S_{target}}\right)^2 \]
 
-Symbols
-* `S` – initial supply = **1 000 000 000** tokens
-* `L` – lottery pool (e.g. 1 ETH)
-* Buy/Sell tax before graduation = **20 %** → conceptual liquidity pool
-  \[ LP = \frac{L}{0.20} = 5·L \]
-* Target ETH returned after selling 800 M (= 0.8·S) tokens:
-  \[ R = 1.10 · LP = 5.5 · L \]
+We require this ratio to be 20:
+\[ \left(\frac{V_T}{V_T - S_{target}}\right)^2 = 20 \]
+\[ \frac{V_T}{V_T - S_{target}} = \sqrt{20} \]
 
-Set
-```
-vt = S                  // virtual token reserve
-ts = 0.8·S              // tokens to be sold in scenario
-ve = ?                  // virtual ETH reserve we must find
-```
-Bonding curve during the sell scenario:
-\[ R = ve · ts / (vt + ts) \]
-⇒ solve for `ve`:
-\[ ve = R · (vt + ts) / ts = 5.5L · 1.8 / 0.8 = **12.375 L** \]
+Solving for \(V_T\):
+\[ V_T = \sqrt{20} \cdot (V_T - S_{target}) \]
+\[ V_T \cdot (\sqrt{20} - 1) = \sqrt{20} \cdot S_{target} \]
+\[ V_T = S_{target} \cdot \frac{\sqrt{20}}{\sqrt{20} - 1} \]
 
-Hence **virtual reserves**
-```
-virtualTokenReserve = 1 B tokens
-virtualEthReserve   = 12.375 × L  ETH
-k = vt · ve / 1e18
-```
+### Calculation
 
-**Initial price**
-\[ P₀ = ve / vt = \frac{12.375 · L}{1 000 000 000} \;ETH \]
+Using high-precision values:
+*   \(S_{target} = 500,000,000 \cdot 10^{18}\)
+*   \(\sqrt{20} \approx 4.472135955\)
 
----
+\[ V_T = (5 \cdot 10^{26}) \cdot \frac{4.472135955}{4.472135955 - 1} \approx 6.44007939 \cdot 10^{26} \]
 
-## 3. Behaviour vs Lottery-Pool Size
+This value is set as a constant in the contract's constructor for gas efficiency:
+`virtualTokenReserve = 644007939147311001867;`
 
-| Lottery-Pool L | virtualEthReserve | Initial Price P₀ (ETH) |
-|---------------:|------------------:|-----------------------:|
-| 0.5 ETH        | 6.1875 ETH        | 6.1875 e-9             |
-| **1 ETH**      | 12.375 ETH        | 1.2375 e-8             |
-| 2 ETH          | 24.75 ETH         | 2.4750 e-8             |
-| 5 ETH          | 61.875 ETH        | 6.1875 e-8             |
+The `virtualEthReserve` is then calculated based on a target initial price (e.g., \(0.000000005\) ETH), and `k` is set. This configuration ensures the desired price volatility is baked into the curve from the start.
 
-Price grows **linearly** with L, while the curvature (= price acceleration) is unchanged.
+## 3. How to Run the Simulation
 
----
+The simulation test verifies that the implemented curve behaves as designed, including the 20x price increase milestone.
 
-## 4. Detailed Numbers for L = 1 ETH
-
-| Event                           | Tokens left (x) | ETH reserve (y) | Spot Price (ETH) |
-|---------------------------------|-----------------:|-----------------:|-----------------:|
-| Genesis                         | 1 000 M          | 12.375           | 1.2375 e-8        |
-| After buying   1 ETH            | ≈ 919 M          | 13.375           | 1.454 e-8         |
-| After cumulative 100 ETH buys   | ≈ 389 M          | 112.375          | 2.889 e-7         |
-| After cumulative 800 M tokens sold (graduation) |   200 M | 17.875 | 8.937 e-8 |
-| As x → 0 (theoretical limit)    | 0               | ∞                | ∞               |
-
-Figures use the exact formula; minor rounding for readability.
-
----
-
-## 5. Takeaways
-1. **Cannot be sold out** – every extra purchase raises price, so draining the last token would need infinite ETH.
-2. Increasing `L` scales *all* prices up linearly but leaves curve shape intact.
-3. With the new `virtualTokenMultiplier = 1` the price curve is much steeper than before, ensuring real token reserves remain.
-
----
-
-## 6. How to Re-Run the Simulation
-
-```
-# in repo root
+To run the test:
+```bash
+# In the repository root
 npx hardhat test test/Simulation.test.js
 ```
-The updated test will:
-• deploy a pool with `L = 1 ETH`
-• perform adaptive buys until ≥ 800 M tokens have been sold
-• execute three proportional sells (10 %, 30 %, 50 % of holdings)
-• print tables similar to a DEX trade history. 
+The test will:
+*   Deploy a pool with the new curve parameters.
+*   Perform a series of buys to simulate market activity.
+*   Verify that the price has increased by approximately 20x when 500M tokens are sold.
+*   Log detailed tables of market state changes. 

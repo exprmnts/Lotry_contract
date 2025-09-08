@@ -7,6 +7,9 @@ module.exports = {
   networks: {
     hardhat: {
       // Default Hardhat network settings (if any specific needed)
+      accounts: {
+        accountsBalance: "10000000000000000000000000", // 10,000,000 ETH
+      },
     },
     base_sepolia: {
       url: process.env.BASE_SEPOLIA_RPC_URL,
