@@ -319,4 +319,46 @@ describe("Launchpad and Pool Integration Tests", function() {
         .to.be.revertedWith("No liquidity to pull");
     });
   });
+
+  describe("Add Funds to Lottery Pot", function() {
+    it("Should revert if a non-owner tries to add funds", async function() {
+      const addAmount = parseEther("0.1");
+      await expect(pool.connect(addr1).addFundsToLotteryPot({ value: addAmount }))
+        .to.be.revertedWithCustomError(pool, "OwnableUnauthorizedAccount")
+        .withArgs(addr1.address);
+    });
+
+    it("Should revert if no ETH is sent", async function() {
+      await expect(pool.connect(owner).addFundsToLotteryPot({ value: 0 }))
+        .to.be.revertedWith("Must send ETH");
+    });
+
+    it("Should allow owner to add funds to the lottery pot", async function() {
+      const addAmount = parseEther("0.1");
+      const feeBefore = await pool.accumulatedPoolFee();
+
+      await pool.connect(owner).addFundsToLotteryPot({ value: addAmount });
+
+      const feeAfter = await pool.accumulatedPoolFee();
+      expect(feeAfter).to.equal(feeBefore + addAmount);
+    });
+
+    it("Should switch potRaised to true when enough funds are added", async function() {
+      const lotteryPotAmount = await pool.lotteryPool();
+      const potRaisedBefore = await pool.potRaised();
+      expect(potRaisedBefore).to.be.false;
+
+      // Add the exact amount needed to raise the pot
+      await pool.connect(owner).addFundsToLotteryPot({ value: lotteryPotAmount });
+
+      const potRaisedAfter = await pool.potRaised();
+      expect(potRaisedAfter).to.be.true;
+    });
+
+    it("Should emit Graduated event when pot is raised", async function() {
+      const lotteryPotAmount = await pool.lotteryPool();
+      await expect(pool.connect(owner).addFundsToLotteryPot({ value: lotteryPotAmount }))
+          .to.emit(pool, "Graduated").withArgs(true);
+    });
+  });
 });
