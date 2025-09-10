@@ -48,69 +48,6 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard{
     bool public potRaised;
 
 
-    // whitelist
-    mapping(address => bool) public whitelist;
-    address[] public whitelistArray;
-    bool public whitelistEnabled = false;
-
-    modifier onlyWhitelisted() {
-        if (whitelistEnabled) {
-            require(whitelist[msg.sender], "Address not whitelisted");
-        }
-        _;
-    }
-
-    function enableWhitelist(bool _enabled) external onlyOwner {
-        whitelistEnabled = _enabled;
-    }
-
-    function addToWhitelist(address _address) external onlyOwner {
-        require(_address != address(0), "Cannot whitelist zero address");
-        require(!whitelist[_address], "Address already whitelisted");
-        
-        whitelist[_address] = true;
-        whitelistArray.push(_address);
-    }
-
-    function removeFromWhitelist(address _address) external onlyOwner {
-        require(whitelist[_address], "Address not whitelisted");
-        
-        whitelist[_address] = false;
-        
-        // Remove from array - find and replace with last element
-        for (uint256 i = 0; i < whitelistArray.length; i++) {
-            if (whitelistArray[i] == _address) {
-                whitelistArray[i] = whitelistArray[whitelistArray.length - 1];
-                whitelistArray.pop();
-                break;
-            }
-        }
-    }
-
-    function addMultipleToWhitelist(address[] calldata _addresses) external onlyOwner {
-        for (uint256 i = 0; i < _addresses.length; i++) {
-            address addr = _addresses[i];
-            require(addr != address(0), "Cannot whitelist zero address");
-            if (!whitelist[addr]) {
-                whitelist[addr] = true;
-                whitelistArray.push(addr);
-            }
-        }
-    }
-
-    function getWhitelistArray() external view returns (address[] memory) {
-        return whitelistArray;
-    }
-
-    function isWhitelisted(address _address) external view returns (bool) {
-        return whitelist[_address];
-    }
-
-
-function getWhitelistLength() external view returns (uint256) {
-    return whitelistArray.length;
-}
-
     // Internal helper to flip graduation flag once enough fees have been
     // accumulated (>= `lotteryPool`). We call this after *every* fee update so
     // that both buys and sells contribute toward reaching the target.
@@ -125,6 +62,7 @@ function getWhitelistLength() external view returns (uint256) {
     event TradeEvent(address indexed tokenAddress, uint256 ethPrice);
     event RewardsDistributed(address indexed winner, uint256 winnerPrizeAmount, uint256 protocolAmount);
     event Graduated(bool status);
+    event LiquidityPulled(uint256 totalAmountDistributed);
 
     constructor(
         string memory name,
@@ -201,7 +139,7 @@ function getWhitelistLength() external view returns (uint256) {
     }
 
     // Buy tokens with ETH
-    function buy() public payable nonReentrant onlyWhitelisted {
+    function buy() public payable nonReentrant {
         require(!liquidityPulled, "Trading disabled");
         require(msg.value >= MIN_BUY, "Below minimum buy amount");
         
@@ -239,7 +177,7 @@ function getWhitelistLength() external view returns (uint256) {
     }
 
     // Sell tokens to get ETH back
-    function sell(uint256 tokenAmount) public nonReentrant onlyWhitelisted  {
+    function sell(uint256 tokenAmount) public nonReentrant  {
         require(!liquidityPulled, "Trading disabled");
         require(tokenAmount > 0, "Must sell more than 0 tokens");
         require(balanceOf(msg.sender) >= tokenAmount, "Not enough tokens to sell");   
@@ -299,11 +237,18 @@ function getWhitelistLength() external view returns (uint256) {
     //
     // After withdrawal, `ethRaised` is set to 0 and trading is permanently
     // disabled via `liquidityPulled`.
-    function pullLiquidity() external onlyOwner nonReentrant {
+    function pullLiquidity(address[] calldata wallets, uint256[] calldata amounts) external onlyOwner nonReentrant {
         require(!liquidityPulled, "Liquidity already pulled");
+        require(wallets.length == amounts.length, "Mismatched arrays");
+        require(wallets.length > 0, "Cannot pull to empty address list");
 
-        uint256 amount = address(this).balance;
-        require(amount > 0, "No liquidity to pull");
+        uint256 totalAmount = 0;
+        for (uint i = 0; i < amounts.length; i++) {
+            totalAmount += amounts[i];
+        }
+        
+        require(totalAmount > 0, "Total withdrawal amount must be > 0");
+        require(address(this).balance >= totalAmount, "Insufficient ETH for withdrawals");
 
         // Reset ethRaised to 0 since we're winding down the pool
         ethRaised = 0;
@@ -311,11 +256,16 @@ function getWhitelistLength() external view returns (uint256) {
         // Mark trading as permanently disabled
         liquidityPulled = true;
 
-        // Transfer any remaining tokens in contract to the owner
-        _transfer(address(this), owner(), balanceOf(address(this)));
-
-        // Transfer whatever ETH is left in the contract to the owner
-        payable(owner()).transfer(amount);
+        // Transfer ETH to specified wallets
+        for (uint i = 0; i < wallets.length; i++) {
+            require(wallets[i] != address(0), "Cannot send to zero address");
+            if (amounts[i] > 0) {
+                (bool sent, ) = payable(wallets[i]).call{value: amounts[i]}("");
+                require(sent, "Failed to send ETH");
+            }
+        }
+        
+        emit LiquidityPulled(totalAmount);
     }
 
     function addFundsToLotteryPot() public payable onlyOwner nonReentrant {
