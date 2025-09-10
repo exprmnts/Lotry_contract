@@ -317,4 +317,10 @@ function getWhitelistLength() external view returns (uint256) {
         // Transfer whatever ETH is left in the contract to the owner
         payable(owner()).transfer(amount);
     }
+
+    function addFundsToLotteryPot() public payable onlyOwner nonReentrant {
+        require(msg.value > 0, "Must send ETH");
+        accumulatedPoolFee += msg.value;
+        _updatePotStatus();
+    }
 }
