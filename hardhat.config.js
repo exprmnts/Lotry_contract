@@ -37,5 +37,10 @@ module.exports = {
     //     }
     //   }
     // ]
+  },
+  moralisChains: {
+    base_sepolia: "0x14a34", // Base Sepolia chainId
+    base: "0x2105", // Base mainnet chainId
+    sepolia: "0xaa36a7"
   }
 };

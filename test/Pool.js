@@ -6,13 +6,13 @@ const parseEther = ethers.parseEther;
 
 describe("Launchpad and Pool Integration Tests", function() {
   this.timeout(60000); // 1 minute timeout
-  let launchpad, pool, owner, addr1, rewardDistributor;
+  let launchpad, pool, owner, addr1, addr2, rewardDistributor;
   const tokenName = "My Test Token";
   const tokenSymbol = "MTT";
   const initialLotteryPool = parseEther("1.0");
 
   beforeEach(async function() {
-    [owner, addr1] = await ethers.getSigners();
+    [owner, addr1, addr2] = await ethers.getSigners();
 
     if (process.env.PRIVATE_KEY) {
       const rewardDistributorWallet = new ethers.Wallet(process.env.PRIVATE_KEY);
@@ -259,64 +259,75 @@ describe("Launchpad and Pool Integration Tests", function() {
   });
 
   describe("Pull Liquidity Function", function() {
-    it("Should allow owner to pull all liquidity", async function() {
+    it("Should allow owner to distribute liquidity to multiple addresses", async function() {
       const buyer1 = addr1;
       const buyAmount1 = parseEther("2.0");
-
-      // User buys tokens to accumulate ethRaised
       await pool.connect(buyer1).buy({ value: buyAmount1 });
 
-      const ethRaisedBefore = await pool.ethRaised();
-      expect(ethRaisedBefore).to.be.gt(0);
+      const contractBalance = await ethers.provider.getBalance(pool.target);
+      expect(contractBalance).to.be.gt(0);
 
-      const poolAddress = await pool.getAddress();
-      const contractBalanceBefore = await ethers.provider.getBalance(poolAddress);
+      const receiver1 = addr2;
+      const receiver2 = owner;
+      const amount1 = parseEther("0.1");
+      const amount2 = contractBalance - amount1;
+
+      const receiver1BalanceBefore = await ethers.provider.getBalance(receiver1.address);
+      const receiver2BalanceBefore = await ethers.provider.getBalance(receiver2.address);
+
+      const wallets = [receiver1.address, receiver2.address];
+      const amounts = [amount1, amount2];
+
+      const tx = await pool.connect(owner).pullLiquidity(wallets, amounts);
+      await tx.wait();
+
+      await expect(tx)
+        .to.emit(pool, "LiquidityPulled")
+        .withArgs(contractBalance);
+
+      const receiver1BalanceAfter = await ethers.provider.getBalance(receiver1.address);
+      const receiver2BalanceAfter = await ethers.provider.getBalance(receiver2.address);
+
+      expect(receiver1BalanceAfter).to.equal(receiver1BalanceBefore + amount1);
       
-      const tokenInContractBefore = await pool.balanceOf(poolAddress);
-      console.log("token in contract before pullLiquidity:", tokenInContractBefore);
-      const tokensBefore = await pool.balanceOf(owner);
-      console.log("token balance before pullLiquidity:", tokensBefore);
-      const ethBalanceBefore = await ethers.provider.getBalance(owner)
-      console.log("ETH balance before pullLiquidity:", ethBalanceBefore);
-
-      // Pull liquidity and check that owner's balance increased by the contract's full balance
-      await expect(pool.connect(owner).pullLiquidity()).to.changeEtherBalance(owner, contractBalanceBefore);
+      const txReceipt = await ethers.provider.getTransactionReceipt(tx.hash);
+      const gasUsed = txReceipt.gasUsed * tx.gasPrice;
+      expect(receiver2BalanceAfter).to.equal(receiver2BalanceBefore + amount2 - gasUsed);
 
       // After liquidity is pulled, trading should be disabled
       await expect(pool.connect(addr1).buy({ value: parseEther("1.0") })).to.be.revertedWith("Trading disabled");
-
-      const tokensHeld = await pool.balanceOf(buyer1.address);
-      if (tokensHeld > 0n) {
-        await pool.connect(buyer1).approve(pool.target, tokensHeld);
-        await expect(pool.connect(buyer1).sell(tokensHeld)).to.be.revertedWith("Trading disabled");
-      }
-
-      const tokenInContractAfter = await pool.balanceOf(poolAddress);
-      console.log("token in contract after pullLiquidity:", tokenInContractAfter);
-      const tokens = await pool.balanceOf(owner);
-      console.log("token balance after pullLiquidity:", tokens);
-      const ethBalance = await ethers.provider.getBalance(owner)
-      console.log("ETH balance after pullLiquidity:", ethBalance);
-
-      const ethRaisedAfter = await pool.ethRaised();
-      expect(ethRaisedAfter).to.equal(0);
+      expect(await pool.liquidityPulled()).to.be.true;
+      expect(await pool.ethRaised()).to.equal(0);
     });
 
     it("Should revert if a non-owner tries to pull liquidity", async function() {
-      // A user buys to ensure there is liquidity to pull
       await pool.connect(addr1).buy({ value: parseEther("1.0") });
-
-      await expect(pool.connect(addr1).pullLiquidity())
+      await expect(pool.connect(addr1).pullLiquidity([addr1.address], [parseEther("0.1")]))
         .to.be.revertedWithCustomError(pool, "OwnableUnauthorizedAccount")
         .withArgs(addr1.address);
     });
 
-    it("Should revert if there is no liquidity to pull", async function() {
-      const ethRaised = await pool.ethRaised();
-      expect(ethRaised).to.equal(0);
+    it("Should revert if total withdrawal amount exceeds contract balance", async function() {
+        await pool.connect(addr1).buy({ value: parseEther("1.0") });
+        const contractBalance = await ethers.provider.getBalance(pool.target);
+        await expect(pool.connect(owner).pullLiquidity([addr1.address], [contractBalance + 1n]))
+            .to.be.revertedWith("Insufficient ETH for withdrawals");
+    });
 
-      await expect(pool.connect(owner).pullLiquidity())
-        .to.be.revertedWith("No liquidity to pull");
+    it("Should revert for mismatched arrays", async function() {
+        await expect(pool.connect(owner).pullLiquidity([addr1.address], []))
+            .to.be.revertedWith("Mismatched arrays");
+    });
+
+    it("Should revert for empty address list", async function() {
+        await expect(pool.connect(owner).pullLiquidity([], []))
+            .to.be.revertedWith("Cannot pull to empty address list");
+    });
+
+    it("Should revert if total withdrawal amount is zero", async function() {
+        await pool.connect(addr1).buy({ value: parseEther("1.0") });
+        await expect(pool.connect(owner).pullLiquidity([addr1.address], [0]))
+            .to.be.revertedWith("Total withdrawal amount must be > 0");
     });
   });
 

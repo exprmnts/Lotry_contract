@@ -10,8 +10,8 @@ async function main() {
   const deployer = new ethers.Wallet(privateKey, ethers.provider);
   console.log("Adding funds with the account:", deployer.address);
 
-  const poolAddress = "0x24928Ca57c9F3bC911480812FA0E1622BAd0aE56";
-  const ethAmount = "0.116";
+  const poolAddress = "";
+  const ethAmount = "";
 
   if (!ethers.isAddress(poolAddress)) {
     console.error("Invalid pool address provided.");
