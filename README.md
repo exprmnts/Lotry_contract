@@ -158,3 +158,119 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## TODO
 - set a freeze function while migrating to uniswap
+
+## How to setup graph for lotry
+
+- Create subgrap in thegraph.com
+- Do this 
+
+```
+
+󰄛 ❯ graph init lotry-main
+✔ Network · Base Chain · base · https://base.blockscout.com
+✔ Source · Smart Contract · ethereum
+✔ Subgraph slug · lotry-main
+✔ Directory to create the subgraph in · lotry-main
+✔ Contract address · 0x15851248D2c77F3F70f912A9eCEC701a71f56b16
+✔ Fetching ABI from Sourcify API...
+✖ Failed to fetch ABI: Failed to fetch ABI: Error: NOTOK - Contract source code not verified
+✔ Do you want to retry? (Y/n) · false
+✔ Fetching start block from Contract API...
+✖ Failed to fetch contract name: Name not found
+✔ Do you want to retry? (Y/n) · false
+✔ ABI file (path) · ./abis/TokenLaunchpad.json
+✔ Start block · 35376931
+✔ Contract name · TokenLaunchpad
+✔ Index contract events as entities (Y/n) · true
+  Generate subgraph
+  Write subgraph to directory
+✔ Create subgraph scaffold
+✔ Initialize networks config
+✔ Initialize subgraph repository
+✔ Install dependencies with yarn
+✔ Generate ABI and schema types with yarn codegen
+✔ Add another contract? (y/N) · true
+✔
+Contract address · 0xD8EF7B0e27466DcF76f511e92D5a3E7828543c6b
+✖ Failed to fetch ABI: Failed to fetch ABI: Error: NOTOK - Contract source code not verified
+✔ Do you want to retry? (Y/n) · false
+✔ ABI file (path) · ../abis/BondingCurvePool.json
+✔ Contract Name · BondingCurvePool
+✔ Running codegen
+
+Subgraph lotry-main created in lotry-main
+
+Next steps:
+
+  1. Run `graph auth` to authenticate with your deploy key.
+
+  2. Type `cd lotry-main` to enter the subgraph.
+
+  3. Run `yarn deploy` to deploy the subgraph.
+
+Make sure to visit the documentation on https://thegraph.com/docs/ for further information.
+```
+
+- cd to graph's folder 
+- use this `.yaml` change address, block number 
+
+```
+specVersion: 1.3.0
+indexerHints:
+  prune: auto
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: TokenLaunchpad
+    network: base
+    source:
+      address: "0x15851248D2c77F3F70f912A9eCEC701a71f56b16"
+      abi: TokenLaunchpad
+      startBlock: 35376931
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - OwnershipTransferred
+        - TokenCreated
+      abis:
+        - name: TokenLaunchpad
+          file: ./abis/TokenLaunchpad.json
+      eventHandlers:
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handleOwnershipTransferred
+        - event: TokenCreated(indexed address,string,string)
+          handler: handleTokenCreated
+      file: ./src/token-launchpad.ts
+templates:
+  - name: BondingCurvePool
+    kind: ethereum/contract
+    network: base
+    source:
+      abi: BondingCurvePool
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      file: ./src/bonding-curve-pool.ts
+      entities:
+        - TradeEvent
+      abis:
+        - name: BondingCurvePool
+          file: ./abis/BondingCurvePool.json
+      eventHandlers:
+        - event: TradeEvent(indexed address,uint256)
+          handler: handleTradeEvent
+```
+
+- `graph codegen && graph build`
+- add these lines in `src/token-launchpad.ts` 
+
+```
+import { BondingCurvePool as BondingCurvePoolTemplate } from "../generated/templates"
+BondingCurvePoolTemplate.create(event.params.tokenAddress)
+```
+
+- `graph deploy lotry-main`
