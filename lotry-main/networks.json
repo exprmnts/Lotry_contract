@@ -3,6 +3,9 @@
     "TokenLaunchpad": {
       "address": "0x15851248D2c77F3F70f912A9eCEC701a71f56b16",
       "startBlock": 35376931
+    },
+    "BondingCurvePool": {
+      "address": "0xD8EF7B0e27466DcF76f511e92D5a3E7828543c6b"
     }
   }
 }
