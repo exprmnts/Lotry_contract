@@ -22,7 +22,7 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard {
 
     // State variables
     uint256 public ethRaised; // Total ETH collected by the curve
-    uint256 public constant_k = 885231478375000000000000000; // The K in the constant product formula (v_tokens * v_eth)
+    uint256 public constant_k; // The K in the constant product formula (v_tokens * v_eth)
 
     // Virtual reserves
     uint256 public virtualTokenReserve = 17525652865772000000000000; // 17,525,653
@@ -49,6 +49,9 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard {
         address initialOwner
     ) ERC20(name, symbol) Ownable(initialOwner) {
         _mint(address(this), INITIAL_SUPPLY);
+        constant_k =
+            (balanceOf(address(this)) + virtualTokenReserve) *
+            virtualEthReserve;
     }
 
     function calculateCurrentPrice() public view returns (uint256) {
@@ -66,10 +69,7 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard {
         require(netEthAmount > 0, "Net ETH for curve is zero");
         return
             (balanceOf(address(this)) + virtualTokenReserve) -
-            (
-                constant_k /
-                    (virtualEthReserve + ethRaised + netEthAmount)
-            );
+            (constant_k / (virtualEthReserve + ethRaised + netEthAmount));
     }
 
     // Calculate how much ETH will be returned for a given token amount
@@ -84,10 +84,8 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard {
         );
         return
             (ethRaised + virtualEthReserve) -
-            (
-                constant_k /
-                    (virtualTokenReserve + tokensInContract + tokenAmount)
-            );
+            (constant_k /
+                (virtualTokenReserve + tokensInContract + tokenAmount));
     }
 
     // Buy tokens with ETH
