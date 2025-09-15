@@ -48,32 +48,6 @@ const getTokenOwnersAndBalances = async (tokenAddress, moralisChain) => {
 };
 
 
-// --- Script ---
-//
-// Add utility to filter out contract addresses that cannot receive plain ETH
-async function filterPayableAddresses(provider, wallets, balances) {
-  const payableWallets = [];
-  const payableBalances = [];
-
-  // Fetch code for all addresses in parallel
-  const codes = await Promise.all(wallets.map((w) => provider.getCode(w)));
-
-  for (let i = 0; i < wallets.length; i++) {
-    const isContract = codes[i] && codes[i] !== "0x";
-    if (isContract) {
-      console.warn(`⏭️  Skipping ${wallets[i]} – detected contract address (cannot receive simple ETH transfers)`);
-      continue;
-    }
-    payableWallets.push(wallets[i]);
-    payableBalances.push(balances[i]);
-  }
-
-  return { wallets: payableWallets, balances: payableBalances };
-}
-
-// Usage:
-//   npx hardhat run scripts/pullLiquidity.js --network <network> -- <POOL_CONTRACT_ADDRESS>
-// OR set CONTRACT_ADDRESS in your .env and omit the CLI argument.
 
 async function main() {
   const { ethers, config } = hre;
@@ -102,10 +76,11 @@ async function main() {
   console.log("Fetching token holders from Moralis...");
   const { wallets: rawWallets, balances: rawBalances } = await getTokenOwnersAndBalances(CONTRACT_ADDRESS, MORALIS_CHAIN);
 
-  // Filter out contract addresses that would revert on direct ETH transfers
-  const filtered = await filterPayableAddresses(hre.ethers.provider, rawWallets, rawBalances);
-  const wallets = filtered.wallets;
-  const balances = filtered.balances;
+  // Use ALL wallets exactly as returned – no filtering. We will handle potential
+  // send failures *after* withdrawing the ETH to the owner, so a failed send to
+  // one address never blocks the others.
+  const wallets = rawWallets;
+  const balances = rawBalances;
 
   if (wallets.length === 0) {
     console.error("No token holders found. Exiting.");
@@ -167,12 +142,18 @@ async function main() {
     process.exit(1);
   }
 
-  // Try a static call to detect reverts and log reason before spending gas
+  // === Strategy change ===
+  // 1. Withdraw *all* ETH from the pool to the owner in a single-recipient
+  //    pullLiquidity call. This cannot fail because `owner` is EOA & payable.
+  // 2. Off-chain, redistribute ETH to every wallet individually. If a single
+  //    transaction reverts (e.g. wallet is a non-payable contract), we catch
+  //    the error and keep moving so the rest still receive their share.
+
+  // --- Step 1: withdraw to owner ---
   try {
-    // Ethers v6: use .staticCall on the function fragment
-    await pool.pullLiquidity.staticCall(wallets, amounts, { gasLimit: 500000 });
+    await pool.pullLiquidity.staticCall([ownerSigner.address], [contractBalance], { gasLimit: 150_000 });
   } catch (staticErr) {
-    console.error("[DRY-RUN] pullLiquidity would revert:", staticErr?.reason || staticErr?.errorName || staticErr);
+    console.error("[DRY-RUN] pullLiquidity to owner would revert:", staticErr?.reason || staticErr?.errorName || staticErr);
     process.exit(1);
   }
 
@@ -194,17 +175,45 @@ async function main() {
     return;
   }
 
-  // Call pullLiquidity
-  console.log("\nCalling pullLiquidity with the following distributions:");
+  console.log("\nWithdrawing entire pool balance to owner...");
+  const withdrawTx = await pool.pullLiquidity([ownerSigner.address], [contractBalance], { gasLimit: 150_000 });
+  console.log(`Withdrawal tx: ${withdrawTx.hash}`);
+  await withdrawTx.wait();
+  console.log("Liquidity pulled to owner ✅");
+
+  // --- Step 2: redistribute ---
+  console.log("\nRedistributing ETH to holders (this happens off-chain)...");
+
+  let successes = 0;
+  let failures = 0;
   for (let i = 0; i < wallets.length; i++) {
-    console.log(`  - Wallet: ${wallets[i]}, Amount: ${ethers.formatEther(amounts[i])} ETH`);
+    const wallet = wallets[i];
+    const amount = amounts[i];
+
+    // Skip the owner – they already hold the entire balance.
+    if (wallet.toLowerCase() === ownerSigner.address.toLowerCase()) {
+      continue;
+    }
+
+    if (amount === 0n) {
+      continue;
+    }
+
+    try {
+      const tx = await ownerSigner.sendTransaction({
+        to: wallet,
+        value: amount,
+        gasLimit: 21_000,
+      });
+      console.log(`✓ Sent ${ethers.formatEther(amount)} ETH to ${wallet} (tx: ${tx.hash})`);
+      successes++;
+    } catch (err) {
+      console.error(`✗ Failed to send ${ethers.formatEther(amount)} ETH to ${wallet}:`, err?.reason || err);
+      failures++;
+    }
   }
 
-  const tx = await pool.pullLiquidity(wallets, amounts, { gasLimit: 500000 });
-  console.log(`Transaction submitted: ${tx.hash}`);
-
-  await tx.wait();
-  console.log("pullLiquidity executed successfully ✅");
+  console.log(`\nRedistribution finished. Successes: ${successes}, Failures: ${failures}`);
 
   // --- Post-pull Status ---
   console.log("\n--- Status After pullLiquidity ---");
