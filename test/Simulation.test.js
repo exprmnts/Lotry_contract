@@ -601,4 +601,149 @@ describe("Market Simulation as a Test", function() {
     expect(totalEthSpent).to.be.gt(0);
     expect(tokensSoldTotal).to.be.gt(0);
   });
+
+  it("should handle mixed buys and sells and show rational price movement", async function() {
+    this.timeout(180000); // 3 minutes timeout
+
+    // --- Setup ---
+    const [owner, trader1, trader2, trader3] = await ethers.getSigners();
+    const traders = [trader1, trader2, trader3];
+    if (traders.some(t => t === undefined)) {
+        throw new Error("Need at least 3 trader accounts for this test.");
+    }
+    const ethToUsdRate = 4500.00;
+
+    console.log(`\n\n===================================================================================================================`);
+    console.log(`  MIXED BUY/SELL SIMULATION: Simulating a volatile market with various traders.`);
+    console.log(`===================================================================================================================\n`);
+
+    // --- Contract Deployment ---
+    const tokenName = "Volatile Token";
+    const tokenSymbol = "VOL";
+    const TokenLaunchpad = await ethers.getContractFactory("TokenLaunchpad");
+    const launchpad = await TokenLaunchpad.deploy(owner.address);
+    await launchpad.waitForDeployment();
+    const tx = await launchpad.launchToken(tokenName, tokenSymbol);
+    const receipt = await tx.wait();
+    const tokenCreatedEvent = receipt.logs.find(log => log.eventName === 'TokenCreated');
+    const poolAddress = tokenCreatedEvent.args.tokenAddress;
+    const BondingCurvePool = await ethers.getContractFactory("BondingCurvePool");
+    const pool = BondingCurvePool.attach(poolAddress);
+    console.log(`  Pool deployed at: ${pool.target}`);
+    console.log("  -------------------------------------------------------------------------------------------------------------------");
+
+    // --- Initial State ---
+    const INITIAL_SUPPLY = await pool.INITIAL_SUPPLY();
+    const initialPrice = await pool.calculateCurrentPrice();
+    const vTokenReserve = await pool.virtualTokenReserve();
+    console.log("  --- Initial Contract State ---");
+    console.log(`  Initial Token Price:       ${parseFloat(formatEther(initialPrice)).toFixed(18)} ETH`);
+
+    // --- Simulation Actions ---
+    const actions = [
+      { type: 'buy', trader: trader1, amount: ethers.parseEther("1.0") },
+      { type: 'buy', trader: trader2, amount: ethers.parseEther("2.5") },
+      { type: 'sell', trader: trader1, percentage: 0.5 }, // 50%
+      { type: 'buy', trader: trader3, amount: ethers.parseEther("0.75") },
+      { type: 'sell', trader: trader2, percentage: 0.25 }, // 25%
+      { type: 'buy', trader: trader1, amount: ethers.parseEther("3.0") },
+      { type: 'buy', trader: trader2, amount: ethers.parseEther("1.2") },
+      { type: 'sell', trader: trader3, percentage: 1.0 }, // 100%
+      { type: 'sell', trader: trader1, percentage: 0.3 }, // 30%
+      { type: 'buy', trader: trader2, amount: ethers.parseEther("5.0") },
+    ];
+
+    const transactionLog = [];
+    
+    console.log(`\n  Executing ${actions.length} mixed buy/sell actions...`);
+    console.log("  -------------------------------------------------------------------------------------------------------------------");
+
+    for (let i = 0; i < actions.length; i++) {
+        const action = actions[i];
+        const { type, trader } = action;
+        const priceBefore = await pool.calculateCurrentPrice();
+        let logEntry;
+
+        if (type === 'buy') {
+            const { amount } = action;
+            const balanceBefore = await pool.balanceOf(trader.address);
+            await pool.connect(trader).buy({ value: amount });
+            const balanceAfter = await pool.balanceOf(trader.address);
+            const tokensReceived = balanceAfter - balanceBefore;
+            
+            const priceAfter = await pool.calculateCurrentPrice();
+            const priceChange = priceAfter - priceBefore;
+            const priceChangePercent = priceBefore > 0n ? (Number(priceChange * 10000n / priceBefore)) / 100 : 0;
+            
+            logEntry = {
+                "#": i + 1,
+                "Action": "BUY",
+                "Trader": `${trader.address.substring(0, 6)}...`,
+                "ETH Amount": `+${parseFloat(formatEther(amount)).toFixed(4)}`,
+                "Token Amount": `+${formatTokens(tokensReceived)}`,
+                "Price Change (%)": `${priceChangePercent.toFixed(4)}%`,
+                "New Price (ETH)": parseFloat(formatEther(priceAfter)).toFixed(12),
+            };
+            expect(priceAfter).to.be.gt(priceBefore);
+
+        } else if (type === 'sell') {
+            const { percentage } = action;
+            const traderBalance = await pool.balanceOf(trader.address);
+            if (traderBalance === 0n) {
+                console.log(`  Skipping sell for ${trader.address.substring(0,6)}... - no tokens to sell.`);
+                continue;
+            }
+            const sellAmount = (traderBalance * BigInt(Math.floor(percentage * 100))) / 100n;
+            
+            const ethBalanceBefore = await ethers.provider.getBalance(trader.address);
+            const sellTx = await pool.connect(trader).sell(sellAmount);
+            const sellReceipt = await sellTx.wait();
+            const gasUsed = sellReceipt.gasUsed * sellTx.gasPrice;
+            const ethBalanceAfter = await ethers.provider.getBalance(trader.address);
+            const ethReceived = (ethBalanceAfter - ethBalanceBefore) + gasUsed;
+
+            const priceAfter = await pool.calculateCurrentPrice();
+            const priceChange = priceAfter - priceBefore;
+            const priceChangePercent = priceBefore > 0n ? (Number(priceChange * 10000n / priceBefore)) / 100 : 0;
+            
+            logEntry = {
+                "#": i + 1,
+                "Action": "SELL",
+                "Trader": `${trader.address.substring(0, 6)}...`,
+                "ETH Amount": `-${parseFloat(formatEther(ethReceived)).toFixed(4)}`,
+                "Token Amount": `-${formatTokens(sellAmount)}`,
+                "Price Change (%)": `${priceChangePercent.toFixed(4)}%`,
+                "New Price (ETH)": parseFloat(formatEther(priceAfter)).toFixed(12),
+            };
+            expect(priceAfter).to.be.lt(priceBefore);
+        }
+
+        const priceAfter = await pool.calculateCurrentPrice();
+        const tokensLeft = await pool.balanceOf(pool.target);
+        const ethRaised = await pool.ethRaised();
+        const circulatingSupply = INITIAL_SUPPLY - tokensLeft;
+        const marketCapInEth = calculateMarketCapEth(priceAfter, circulatingSupply, vTokenReserve);
+        const marketCapInUsd = ethToUsd(marketCapInEth, ethToUsdRate);
+        logEntry["Market Cap (USD)"] = formatUsd(marketCapInUsd);
+        logEntry["ETH in Contract"] = parseFloat(formatEther(ethRaised)).toFixed(4);
+
+        transactionLog.push(logEntry);
+    }
+
+    console.log("\n  --- Mixed Buy/Sell Transaction Log ---");
+    console.table(transactionLog);
+    console.log("  -------------------------------------------------------------------------------------------------------------------");
+
+    // --- Final State ---
+    const finalPrice = await pool.calculateCurrentPrice();
+    const finalEthRaised = await pool.ethRaised();
+
+    console.log("\n  --- Final State ---");
+    console.log(`  Initial Price: ${formatEther(initialPrice)} ETH`);
+    console.log(`  Final Price:   ${formatEther(finalPrice)} ETH`);
+    console.log(`  ETH Raised:    ${formatEther(finalEthRaised)} ETH`);
+    console.log("  -------------------------------------------------------------------------------------------------------------------");
+    
+    expect(finalEthRaised).to.be.gte(0);
+  });
 }); 
