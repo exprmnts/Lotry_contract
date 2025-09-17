@@ -21,7 +21,7 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard {
         0xebf3334CEE2fb0acDeeAD2E13A0Af302A2e2FF3c;
 
     // State variables
-    uint256 public ethRaised; // Total ETH collected by the curve
+    uint256 public ethRaised; // Total ETH in Liquidity
     uint256 public constant_k; // The K in the constant product formula (v_tokens * v_eth)
 
     // Virtual reserves
