@@ -27,6 +27,7 @@
     "@chainlink/hardhat-chainlink": "^0.0.4",
     "@openzeppelin/contracts": "^5.2.0",
     "@prb/math": "^4.1.0",
+    "@uniswap/v4-core": "^1.0.2",
     "chai": "^4.3.7",
     "ethers": "^6.15.0",
     "moralis": "^2.27.2",

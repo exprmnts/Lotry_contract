@@ -3,11 +3,11 @@ require("dotenv").config();
 
 async function main() {
     // Address of the deployed TokenLaunchpad contract from .env file
-    const tokenLaunchpadAddress = process.env.CONTRACT_ADDRESS; 
+    const tokenLaunchpadAddress = '0x9449D94820fe81160221d06344c74b4407B49E39'; 
 
     // Details for the new token
     // TODO: Replace with your token name and symbol
-    const TOKEN_NAME = "My New Token"; 
+    const TOKEN_NAME = "meow not token"; 
     const TOKEN_SYMBOL = "MNT"; 
 
     if (!tokenLaunchpadAddress) {

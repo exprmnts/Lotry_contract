@@ -3,7 +3,16 @@ require("dotenv").config();
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
-  solidity: "0.8.20",
+  solidity: {
+    compilers: [
+      {
+        version: "0.8.20",
+      },
+      {
+        version: "0.8.24",
+      },
+    ],
+  },
   networks: {
     hardhat: {
       // Default Hardhat network settings (if any specific needed)
@@ -21,6 +30,11 @@ module.exports = {
       accounts:[process.env.PRIVATE_KEY],
       chainId: 8453,
     },
+    sepolia: {
+      url: process.env.SEPOLIA_RPC_URL,
+      accounts:[process.env.PRIVATE_KEY],
+      chainId: 11155111,
+    },
   },
   etherscan: {
     // Optional: Add API key for contract verification on Basescan
@@ -37,6 +51,12 @@ module.exports = {
     //     }
     //   }
     // ]
+  },
+  paths: {
+    sources: "./contracts",
+    tests: "./test",
+    cache: "./cache",
+    artifacts: "./artifacts"
   },
   moralisChains: {
     base_sepolia: "0x14a34", // Base Sepolia chainId
