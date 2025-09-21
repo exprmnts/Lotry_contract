@@ -27,7 +27,7 @@ async function main() {
   // 1. Uncomment the following block to buy tokens.
   // 2. Set the amount of ETH to spend in `ethToSpend`.
 
-  const ethToSpend = ethers.parseEther("0.01"); // Example: 0.01 ETH
+  const ethToSpend = ethers.parseEther("0.001");
   console.log(
     `Attempting to buy tokens with ${ethers.formatEther(
       ethToSpend

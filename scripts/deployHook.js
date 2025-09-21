@@ -12,7 +12,7 @@ async function main() {
   console.log("Deploying contracts with the account:", wallet.address);
 
   // Addresses for Sepolia
-  const poolManagerAddress = "0x05E73354cFDd6745C338b50BcFDfA3Aa6fA03408";
+  const poolManagerAddress = "0xE03A1074c86CFeDd5C142C4F04F1a1536e203543";
   const wethAddress = "0x7b79995e5f793A07Bc00c21412e50Ecae098E7f9";
   const treasuryAddress = process.env.CONTRACT_ADDRESS; // Taxes will be sent here
 

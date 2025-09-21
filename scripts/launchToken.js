@@ -7,8 +7,8 @@ async function main() {
 
     // Details for the new token
     // TODO: Replace with your token name and symbol
-    const TOKEN_NAME = "meow not token"; 
-    const TOKEN_SYMBOL = "MNT"; 
+    const TOKEN_NAME = "macarena"; 
+    const TOKEN_SYMBOL = "MAC"; 
 
     if (!tokenLaunchpadAddress) {
         console.error("Please set TOKEN_LAUNCHPAD_ADDRESS in your .env file");
