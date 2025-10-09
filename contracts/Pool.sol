@@ -25,8 +25,8 @@ contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard {
     uint256 public constant_k; // The K in the constant product formula (v_tokens * v_eth)
 
     // Virtual reserves
-    uint256 public virtualTokenReserve = 17525652865772000000000000; // 17,525,653
-    uint256 public virtualEthReserve = 869984433200000000; // 0.87 ETH;
+    uint256 public virtualTokenReserve = 17525652865772000000000000; // 17,525,652.865772
+    uint256 public virtualEthReserve = 1271907066082000000; // 1.271907066082 ETH
 
     // Accumulated Taxes/Fees
     uint256 public accumulatedPoolFee;
