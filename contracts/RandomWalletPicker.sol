@@ -79,16 +79,17 @@ contract RandomWalletPicker is VRFConsumerBaseV2Plus {
         require(totalStakes > 0, "Total stakes must be positive");
         s_totalStakes = totalStakes;
 
-        VRFV2PlusClient.RandomWordsRequest memory req = VRFV2PlusClient.RandomWordsRequest({
-            keyHash: i_keyHash,
-            subId: i_subscriptionId,
-            requestConfirmations: i_requestConfirmations,
-            callbackGasLimit: i_callbackGasLimit,
-            numWords: i_numWords,
-            extraArgs: VRFV2PlusClient._argsToBytes(
-                VRFV2PlusClient.ExtraArgsV1({nativePayment: true})
-            )
-        });
+        VRFV2PlusClient.RandomWordsRequest memory req = VRFV2PlusClient
+            .RandomWordsRequest({
+                keyHash: i_keyHash,
+                subId: i_subscriptionId,
+                requestConfirmations: i_requestConfirmations,
+                callbackGasLimit: i_callbackGasLimit,
+                numWords: i_numWords,
+                extraArgs: VRFV2PlusClient._argsToBytes(
+                    VRFV2PlusClient.ExtraArgsV1({nativePayment: true})
+                )
+            });
 
         requestId = s_vrfCoordinator.requestRandomWords(req);
 
@@ -181,10 +182,9 @@ contract RandomWalletPicker is VRFConsumerBaseV2Plus {
      * @notice Sets the request confirmations.
      * @param _newRequestConfirmations The new number of confirmations to wait for.
      */
-    function setRequestConfirmations(uint16 _newRequestConfirmations)
-        public
-        onlyOwner
-    {
+    function setRequestConfirmations(
+        uint16 _newRequestConfirmations
+    ) public onlyOwner {
         i_requestConfirmations = _newRequestConfirmations;
     }
 
