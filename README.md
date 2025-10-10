@@ -30,6 +30,7 @@ This project implements a sophisticated token bonding curve system - a mathemati
 **Mainnet Contract:** [0x4aefdb502562a55aae91dfdaf5a11f1724d945d1](https://basescan.org/address/0x4aefdb502562a55aae91dfdaf5a11f1724d945d1)
 
 **Recent Transactions:**
+
 - Token Launch: [View Transaction](https://basescan.org/tx/0x74f1f182fc4b98f12feb20533e4df131641601f4f2ca038429db5c16463a122a)
 
 ## ✨ Features
@@ -65,7 +66,7 @@ For detailed mathematical explanations, see [BONDINGCURVE.md](./BONDINGCURVE.md)
 ### Prerequisites
 
 - **Foundry**: [Install Foundry](https://getfoundry.sh/)
-- **Node.js**: v18+ 
+- **Node.js**: v18+
 - **Git**: Latest version
 - **Environment Variables**: Properly configured `.env` file
 
@@ -81,7 +82,7 @@ For detailed mathematical explanations, see [BONDINGCURVE.md](./BONDINGCURVE.md)
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/lotry-contract.git
+git clone https://github.com/4rjunc/lotry-contract.git
 cd lotry-contract
 ```
 
@@ -91,8 +92,8 @@ cd lotry-contract
 # Install Foundry dependencies
 forge install
 
-# Install Chainlink contracts
-forge install smartcontractkit/chainlink-brownie-contracts
+# Pull gitsubmodules
+git submodule update --init --recursive
 ```
 
 ### 3. Build the Project
@@ -103,85 +104,122 @@ forge build
 
 ### 4. Environment Setup
 
+#### Wallet Setup Using Cast
+
+Before deploying, you need to set up a wallet using Foundry's `cast` tool:
+
+1. **Import your wallet**:
+   ```bash
+   cast wallet import <wallet name> --private-key <private key>
+   ```
+
+2. **List your wallets**:
+   ```bash
+   cast wallet list
+   ```
+
 #### Option A: Using direnv (Recommended)
 
+This project uses `direnv` to manage environment variables for different networks.
+
+1. **Install direnv** (if you haven't already):
+   ```bash
+   # Ubuntu/Debian
+   sudo apt install direnv
+   # macOS
+   brew install direnv
+   ```
+2. **Hook direnv into your shell**. Add the following line to your shell's startup file (e.g., `~/.bashrc`, `~/.zshrc`):
+
+   ```bash
+   eval "$(direnv hook bash)" # or zsh, fish, etc.
+   ```
+
+3. **Set up `.envrc`**. Create a `.envrc` file in the project root with the following content:
+
+   ```bash
+   #!/bin/bash
+   # Set default environment if not specified
+   : ${TARGET_ENV:=base_sepolia}
+
+   # Load the corresponding .env file
+   source_env ".env.$TARGET_ENV"
+   ```
+
+4. **Allow direnv**. Run the following command in the project root:
+   ```bash
+   direnv allow .
+   ```
+
+Now, `direnv` will automatically load the environment variables from `.env.base_sepolia` by default. To switch environments, you can set the `TARGET_ENV` variable:
+
 ```bash
-# Install direnv
-sudo apt install direnv  # Ubuntu/Debian
-# or
-brew install direnv      # macOS
+export TARGET_ENV=base
+# Your shell will now use variables from .env.base
 
-# Configure shell
-eval "$(direnv hook bash)"
-echo 'eval "$(direnv hook bash)"' >> ~/.bashrc
-source ~/.bashrc
-
-# Allow direnv in project directory
-direnv allow .
+export TARGET_ENV=sepolia
+# Your shell will now use variables from .env.sepolia
 ```
 
 #### Option B: Manual Environment Variables
 
-Create a `.env` file in the project root:
+If you prefer not to use `direnv`, you can manually load the environment variables from the desired file before running any commands:
 
 ```bash
-# Network Configuration
-BASE_SEPOLIA_RPC_URL=your_base_sepolia_rpc_url
-BASE_MAINNET_RPC_URL=your_base_mainnet_rpc_url
-
-# Deployment Configuration
-PRIVATE_KEY=your_private_key_here
-
-# Chainlink VRF Configuration
-VRF_COORDINATOR=your_vrf_coordinator_address
-LINK_TOKEN=your_link_token_address
-VRF_SUBSCRIPTION_ID=your_subscription_id
-VRF_KEY_HASH=your_key_hash
+source .env.base_sepolia
+forge build
 ```
 
 ## ⚙️ Configuration
 
 ### Foundry Configuration
 
-The project uses Foundry for development and deployment. Key configuration files:
+The `foundry.toml` file contains the base configuration for the project, such as source directories and compiler settings. Network-specific configurations like RPC URLs and private keys are managed via `.env` files and loaded into your shell session by `direnv`.
 
 - `foundry.toml` - Foundry project configuration
 - `remappings.txt` - Solidity import remappings
 - `abis/` - Contract ABIs for integration
 
-### Network Configuration
-
-Supported networks:
-- **Base Sepolia** (Testnet)
-- **Base Mainnet** (Production)
-
 ## 🚀 Deployment
 
-### Deploy Launchpad Contract
+Make sure you have the correct environment loaded with `direnv` before deploying. Your `.env.<network>` file (e.g., `.env.base_sepolia`) should define and export the following variables:
+
+- `ETH_RPC_URL`: The RPC endpoint for your target network.
+- `PRIVATE_KEY`: The private key of the deploying account.
+- `ETHERSCAN_API_KEY`: Your Etherscan API key for contract verification (e.g., from Basescan for Base).
+
+### Deploying to a Network
+
+1.  **Set your target environment**. For example, to deploy to Base Sepolia, run:
+
+    ```bash
+    export TARGET_ENV=base_sepolia
+    ```
+
+    `direnv` will automatically load the variables from `.env.base_sepolia`. If it's your first time or you've changed `.envrc`, you may need to run `direnv allow .`.
+
+2.  **Run the deployment scripts**. `forge` will automatically use the `ETH_RPC_URL`, `PRIVATE_KEY`, and `ETHERSCAN_API_KEY` from your environment.
+
+**Deploy Launchpad Contract**
 
 ```bash
-forge script script/LaunchpadDeploy.s.sol:LaunchpadDeploy \
-    --rpc-url $BASE_SEPOLIA_RPC_URL \
-    --private-key $PRIVATE_KEY \
-    --broadcast
+forge script script/LaunchpadDeploy.s.sol:LaunchpadDeploy --rpc-url $RPC_URL -vvv --keystore ~/.foundry/keystores/<Wallet Name>  --broadcast
 ```
 
-### Deploy Random Wallet Picker (VRF)
+**Deploy Random Wallet Picker (VRF)**
 
 ```bash
-forge script script/VRFDeploy.s.sol:VRFDeploy \
-    --rpc-url $BASE_SEPOLIA_RPC_URL \
-    --private-key $PRIVATE_KEY \
-    --broadcast
+forge script script/VRFDeploy.s.sol:VRFDeploy --broadcast --verify
 ```
 
-### Pull Liquidity
+Example for `base_sepolia`:
 
 ```bash
-forge script script/PullLiquidity.s.sol:PullLiquidity \
-    --rpc-url $BASE_SEPOLIA_RPC_URL \
-    --private-key $PRIVATE_KEY \
-    --broadcast
+# 1. Set the environment
+export TARGET_ENV=base_sepolia
+
+# 2. Deploy the Launchpad
+forge script script/LaunchpadDeploy.s.sol:LaunchpadDeploy --rpc-url $RPC_URL -vvv --keystore ~/.foundry/keystores/baseSepoliaWallet  --broadcast
 ```
 
 ## 🧪 Testing
@@ -192,14 +230,13 @@ forge script script/PullLiquidity.s.sol:PullLiquidity \
 forge test
 ```
 
-### Run Specific Test Files
+### Run Forked Tests
+
+To run tests on a forked network, set your `TARGET_ENV` and run:
 
 ```bash
-# Test Random Wallet Picker
-forge test test/RandomWalletPicker.test.js --network base_sepolia
-
-# Test with verbose output
-forge test -vvv
+export TARGET_ENV=base
+forge test --rpc-url base
 ```
 
 ### Test Coverage
@@ -208,39 +245,19 @@ forge test -vvv
 forge coverage
 ```
 
-## 💡 Usage
-
-### Basic Token Operations
-
-1. **Launch Token**
-   ```bash
-   # Deploy new token with bonding curve
-   forge script script/LaunchpadDeploy.s.sol:LaunchpadDeploy --broadcast
-   ```
-
-2. **Buy Tokens**
-   ```javascript
-   // Example: Buy tokens with 0.1 ETH
-   await launchpad.buyTokens({ value: ethers.utils.parseEther("0.1") });
-   ```
-
-3. **Sell Tokens**
-   ```javascript
-   // Example: Sell all tokens
-   const balance = await token.balanceOf(user.address);
-   await launchpad.sellTokens(balance);
-   ```
-
 ### Chainlink VRF Integration
 
 1. **Create VRF Subscription**
+
    - Visit [Chainlink VRF](https://vrf.chain.link/sepolia)
    - Connect wallet and create subscription
    - Fund with LINK tokens (minimum 2 LINK)
 
 2. **Deploy VRF Contract**
+
    ```bash
-   forge script script/VRFDeploy.s.sol:VRFDeploy --broadcast
+   # Replace <network> with your target testnet
+   forge script script/VRFDeploy.s.sol:VRFDeploy --rpc-url <network> --broadcast
    ```
 
 3. **Add Consumer to Subscription**
@@ -250,7 +267,7 @@ forge coverage
 
 ```bash
 # Complete test flow: Launch → Buy → Sell
-forge script script/interactSepolia.js --network base_sepolia
+dotenv -e env/base_sepolia/.env forge test --rpc-url base_sepolia
 ```
 
 ## 🔒 Security
@@ -313,6 +330,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Built with ❤️ by the Lotry.fun team**
+**From the studios of Experiments. Built with ❤️**
 
-*For technical questions or support, please open an issue or join our community discussions.*
+_For technical questions or support, please open an issue or join our community discussions._
