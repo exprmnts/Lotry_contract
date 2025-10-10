@@ -184,9 +184,7 @@ The `foundry.toml` file contains the base configuration for the project, such as
 
 Make sure you have the correct environment loaded with `direnv` before deploying. Your `.env.<network>` file (e.g., `.env.base_sepolia`) should define and export the following variables:
 
-- `ETH_RPC_URL`: The RPC endpoint for your target network.
-- `PRIVATE_KEY`: The private key of the deploying account.
-- `ETHERSCAN_API_KEY`: Your Etherscan API key for contract verification (e.g., from Basescan for Base).
+- `RPC_URL`: The RPC endpoint for your target network.
 
 ### Deploying to a Network
 
