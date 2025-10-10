@@ -256,19 +256,11 @@ forge coverage
 2. **Deploy VRF Contract**
 
    ```bash
-   # Replace <network> with your target testnet
-   forge script script/VRFDeploy.s.sol:VRFDeploy --rpc-url <network> --broadcast
+   forge script script/VRFDeploy.s.sol:VRFDeploy --rpc-url $RPC_URL -vvv --keystore ~/.foundry keystores/baseSepoliaWallet --broadcast
    ```
 
 3. **Add Consumer to Subscription**
    - Use the deployed contract address as consumer
-
-### Interactive Testing
-
-```bash
-# Complete test flow: Launch → Buy → Sell
-dotenv -e env/base_sepolia/.env forge test --rpc-url base_sepolia
-```
 
 ## 🔒 Security
 
