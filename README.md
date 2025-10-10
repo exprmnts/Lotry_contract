@@ -109,6 +109,7 @@ forge build
 Before deploying, you need to set up a wallet using Foundry's `cast` tool:
 
 1. **Import your wallet**:
+
    ```bash
    cast wallet import <wallet name> --private-key <private key>
    ```
@@ -220,6 +221,23 @@ export TARGET_ENV=base_sepolia
 forge script script/LaunchpadDeploy.s.sol:LaunchpadDeploy --rpc-url $RPC_URL -vvv --keystore ~/.foundry/keystores/baseSepoliaWallet  --broadcast
 ```
 
+## Chainlink VRF Integration
+
+1. **Create VRF Subscription**
+
+   - Visit [Chainlink VRF](https://vrf.chain.link/sepolia)
+   - Connect wallet and create subscription
+   - Fund with ETH
+
+2. **Deploy VRF Contract**
+
+   ```bash
+   forge script script/VRFDeploy.s.sol:VRFDeploy --rpc-url $RPC_URL -vvv --keystore ~/.foundry keystores/baseSepoliaWallet --broadcast
+   ```
+
+3. **Add Consumer to Subscription**
+   - Use the deployed contract address as consumer
+
 ## 🧪 Testing
 
 ### Run All Tests
@@ -243,22 +261,19 @@ forge test --rpc-url base
 forge coverage
 ```
 
-### Chainlink VRF Integration
+### Testing VRF
 
-1. **Create VRF Subscription**
+Since the test requires onchain interaction and wallet activity we have to put this in /script
 
-   - Visit [Chainlink VRF](https://vrf.chain.link/sepolia)
-   - Connect wallet and create subscription
-   - Fund with LINK tokens (minimum 2 LINK)
+```bash
+forge script script/PickRandomWallet.s.sol:PickRandomWallet --rpc-url $RPC_URL --keystore ~/.foundry/keystores/baseSepoliaWallet --broadcast -vvv
+```
 
-2. **Deploy VRF Contract**
+As Foundry script runs as a single, synchronous operation. It can't pause and wait for the Chainlink network to send the fulfillment transaction back. Once the fulfillment transaction has occurred, you can easily check the winner's address by calling the getPickedWallet view function on your contract. This can be done using the `cast call`
 
-   ```bash
-   forge script script/VRFDeploy.s.sol:VRFDeploy --rpc-url $RPC_URL -vvv --keystore ~/.foundry keystores/baseSepoliaWallet --broadcast
-   ```
-
-3. **Add Consumer to Subscription**
-   - Use the deployed contract address as consumer
+```bash
+cast call $DEPLOYED_VRF_CA "getPickedWallet()" --rpc-url $RPC_URL
+```
 
 ## 🔒 Security
 
