@@ -27,10 +27,13 @@ contract TokenLaunchpad is Ownable {
     // Function to create a new ERC20 token
     function launchToken(
         string memory name,
-        string memory symbol,
-        uint256 initialLotteryPool
-     ) public returns (address) {
-        BondingCurvePool newToken = new BondingCurvePool(name, symbol, initialLotteryPool, msg.sender);
+        string memory symbol
+    ) public returns (address) {
+        BondingCurvePool newToken = new BondingCurvePool(
+            name,
+            symbol,
+            msg.sender
+        );
 
         TokenInfo memory tokenInfo = TokenInfo({
             tokenAddress: address(newToken),
@@ -50,4 +53,3 @@ contract TokenLaunchpad is Ownable {
         return createdTokens;
     }
 }
-
