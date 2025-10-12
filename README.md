@@ -243,7 +243,7 @@ forge script script/LaunchpadDeploy.s.sol:LaunchpadDeploy --rpc-url $RPC_URL -vv
 ### Run All Tests
 
 ```bash
-forge test
+forge test -vvv
 ```
 
 ### Run Forked Tests

@@ -10,12 +10,13 @@ solc_version = "0.8.20"
 # Enable the optimizer – same defaults Hardhat uses
 optimizer = true
 optimizer_runs = 200
+via_ir = true
 
 # Optional: specify where forge should look for Solidity tests.
 # We leave this the same so your existing JavaScript tests are untouched.
 # You can later add Solidity tests alongside them if you wish.
 
-[test]
+[profile.test]
 runner = "forge"
 
 [fmt]
