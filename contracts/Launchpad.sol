@@ -7,27 +7,24 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./Pool.sol";
 
 contract TokenLaunchpad is Ownable {
+
+    uint256 public tokenCount;
+
     event TokenCreated(
         address indexed tokenAddress,
+        address indexed creator,
+        uint256 indexed tokenId,
+        uint256 timestamp,
         string name,
         string symbol
     );
-
-    // Struct to store token details
-    struct TokenInfo {
-        address tokenAddress;
-        string name;
-        string symbol;
-    }
-
-    TokenInfo[] public createdTokens;
 
     constructor(address initialOwner) Ownable(initialOwner) {}
 
     // Function to create a new ERC20 token
     function launchToken(
-        string memory name,
-        string memory symbol
+        string calldata name,
+        string calldata symbol
     ) public returns (address) {
         BondingCurvePool newToken = new BondingCurvePool(
             name,
@@ -35,21 +32,22 @@ contract TokenLaunchpad is Ownable {
             msg.sender
         );
 
-        TokenInfo memory tokenInfo = TokenInfo({
-            tokenAddress: address(newToken),
-            name: name,
-            symbol: symbol
-        });
-        createdTokens.push(tokenInfo);
+
+        address tokenAddress = address(newToken);
 
         // Emit event about token creation
-        emit TokenCreated(address(newToken), name, symbol);
+        emit TokenCreated(
+            tokenAddress,
+            msg.sender,
+            tokenCount,
+            block.timestamp,
+            name,
+            symbol
+        );
 
-        return address(newToken);
+        unchecked { ++tokenCount; }
+        
+        return tokenAddress;
     }
 
-    // Function to retrieve all created tokens
-    function getAllTokens() public view returns (TokenInfo[] memory) {
-        return createdTokens;
-    }
 }

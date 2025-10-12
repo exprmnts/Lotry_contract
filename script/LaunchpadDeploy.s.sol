@@ -12,6 +12,10 @@ contract LaunchpadDeploy is Script {
         TokenLaunchpad launchpad = new TokenLaunchpad(msg.sender);
         console2.log("TokenLaunchpad deployed at", address(launchpad));
 
+        // Launch a token through the launchpad
+        address tokenAddress = launchpad.launchToken("CAT", "CAT");
+        console2.log("Token deployed at", tokenAddress);
+
         vm.stopBroadcast();
     }
 }
