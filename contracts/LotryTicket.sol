@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract BondingCurvePool is ERC20, Ownable, ReentrancyGuard {
+contract LotryTicket is ERC20, Ownable, ReentrancyGuard {
     uint256 public constant INITIAL_SUPPLY =
         1_000_000_000_000_000_000_000_000_000;
     uint256 public constant MIN_BUY = 0.00001 ether;
