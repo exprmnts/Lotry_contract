@@ -2,13 +2,13 @@
 pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
-import "../contracts/Launchpad.sol";
-import "../contracts/Pool.sol";
+import "../contracts/LotryLaunch.sol";
+import "../contracts/LotryTicket.sol";
 import "./helpers/Formatting.sol";
 
 contract PoolSimulationTest is Test {
-    TokenLaunchpad launchpad;
-    BondingCurvePool pool;
+    LotryLaunch launchpad;
+    LotryTicket lotry;
     address owner;
     address buyer1;
     address buyer2;
@@ -27,7 +27,7 @@ contract PoolSimulationTest is Test {
         buyers.push(buyer3);
 
         vm.startPrank(owner);
-        launchpad = new TokenLaunchpad(owner);
+        launchpad = new LotryLaunch(owner);
         vm.stopPrank();
 
         vm.deal(buyer1, 10000 ether);
@@ -38,7 +38,7 @@ contract PoolSimulationTest is Test {
     function createNewPool(string memory name, string memory symbol) internal {
         vm.prank(owner);
         address poolAddress = launchpad.launchToken(name, symbol);
-        pool = BondingCurvePool(poolAddress);
+        lotry = LotryTicket(poolAddress);
     }
 
     function calculateMarketCapEth(
@@ -52,25 +52,25 @@ contract PoolSimulationTest is Test {
     function test_marketSimulation() public {
         createNewPool("Simulation Token", "SIM");
 
-        uint256 INITIAL_SUPPLY = pool.INITIAL_SUPPLY();
-        uint256 vTokenReserve = pool.virtualTokenReserve();
-        uint256 vEthReserve = pool.virtualEthReserve();
+        uint256 INITIAL_SUPPLY = lotry.INITIAL_SUPPLY();
+        uint256 vTokenReserve = lotry.virtualTokenReserve();
+        uint256 vEthReserve = lotry.virtualEthReserve();
 
         console.log("\n--- Initial Contract State ---");
         console.log("Virtual Token Reserve:", Formatting.formatTokens(vm, vTokenReserve));
         console.log("Virtual ETH Reserve:", Formatting.formatEther(vm, vEthReserve, 4));
         console.log(
             "Tokens in Contract:",
-            Formatting.formatTokens(vm, pool.balanceOf(address(pool)))
+            Formatting.formatTokens(vm, lotry.balanceOf(address(lotry)))
         );
-        console.log("ETH Raised in Contract:", Formatting.formatEther(vm, pool.ethRaised(), 4));
+        console.log("ETH Raised in Contract:", Formatting.formatEther(vm, lotry.ethRaised(), 4));
         console.log(
             "Initial Token Price (ETH):",
-            Formatting.formatSmallPrice(vm, pool.calculateCurrentPrice())
+            Formatting.formatSmallPrice(vm, lotry.calculateCurrentPrice())
         );
         uint256 initialMarketCapInEth = calculateMarketCapEth(
-            pool.calculateCurrentPrice(),
-            INITIAL_SUPPLY - pool.balanceOf(address(pool)),
+            lotry.calculateCurrentPrice(),
+            INITIAL_SUPPLY - lotry.balanceOf(address(lotry)),
             vTokenReserve
         );
         console.log("Initial Market Cap (ETH):", Formatting.formatEther(vm, initialMarketCapInEth, 4));
@@ -99,13 +99,13 @@ contract PoolSimulationTest is Test {
 
         for (uint i = 0; i < 50 && tokensSoldTotal < targetTokensSold; i++) {
             vm.prank(buyer1);
-            uint256 balanceBefore = pool.balanceOf(buyer1);
-            try pool.buy{value: buyAmountWei}() {
-                uint256 balanceAfter = pool.balanceOf(buyer1);
+            uint256 balanceBefore = lotry.balanceOf(buyer1);
+            try lotry.buy{value: buyAmountWei}() {
+                uint256 balanceAfter = lotry.balanceOf(buyer1);
                 uint256 tokensReceived = balanceAfter - balanceBefore;
 
-                uint256 currentPrice = pool.calculateCurrentPrice();
-                uint256 tokensLeft = pool.balanceOf(address(pool));
+                uint256 currentPrice = lotry.calculateCurrentPrice();
+                uint256 tokensLeft = lotry.balanceOf(address(lotry));
                 uint256 circulatingSupply = INITIAL_SUPPLY - tokensLeft;
                 tokensSoldTotal = circulatingSupply;
                 uint256 marketCapInEth = calculateMarketCapEth(
@@ -122,8 +122,8 @@ contract PoolSimulationTest is Test {
                     Formatting.pad(Formatting.formatTokens(vm, tokensLeft), 15), " | ",
                     Formatting.pad(Formatting.formatSmallPrice(vm, currentPrice), 20), " | ",
                     Formatting.pad(Formatting.formatUsd(vm, marketCapUsd), 20), " | ",
-                    Formatting.pad(Formatting.formatEther(vm, pool.ethRaised(), 4), 15), " | ",
-                    Formatting.formatEther(vm, pool.accumulatedPoolFee(), 6)
+                    Formatting.pad(Formatting.formatEther(vm, lotry.ethRaised(), 4), 15), " | ",
+                    Formatting.formatEther(vm, lotry.accumulatedPoolFee(), 6)
                 );
                 console.log(row);
 
@@ -143,7 +143,7 @@ contract PoolSimulationTest is Test {
         console.log("\n--- Final Tax Collections ---");
         console.log(
             "Accumulated Pool Fee (ETH):",
-            Formatting.formatEther(vm, pool.accumulatedPoolFee(), 6)
+            Formatting.formatEther(vm, lotry.accumulatedPoolFee(), 6)
         );
         console.log("------------------------------------");
 
@@ -159,7 +159,7 @@ contract PoolSimulationTest is Test {
         );
         console.log(header);
 
-        uint256 sellerBalanceTotal = pool.balanceOf(buyer1);
+        uint256 sellerBalanceTotal = lotry.balanceOf(buyer1);
         uint256[] memory sellPercentages = new uint256[](3);
         sellPercentages[0] = 10;
         sellPercentages[1] = 30;
@@ -167,14 +167,14 @@ contract PoolSimulationTest is Test {
 
         for (uint i = 0; i < sellPercentages.length; i++) {
             uint256 sellAmount = (sellerBalanceTotal * sellPercentages[i]) / 100;
-            if (pool.balanceOf(buyer1) >= sellAmount && sellAmount > 0) {
+            if (lotry.balanceOf(buyer1) >= sellAmount && sellAmount > 0) {
                 vm.prank(buyer1);
                 uint256 ethBefore = buyer1.balance;
-                pool.sell(sellAmount);
+                lotry.sell(sellAmount);
                 uint256 ethReceived = buyer1.balance - ethBefore;
 
-                uint256 currentPrice = pool.calculateCurrentPrice();
-                uint256 tokensLeft = pool.balanceOf(address(pool));
+                uint256 currentPrice = lotry.calculateCurrentPrice();
+                uint256 tokensLeft = lotry.balanceOf(address(lotry));
                 uint256 circulatingSupply = INITIAL_SUPPLY - tokensLeft;
                 uint256 marketCapInEth = calculateMarketCapEth(
                     currentPrice,
@@ -187,16 +187,16 @@ contract PoolSimulationTest is Test {
                     Formatting.pad(Formatting.formatTokens(vm, sellAmount), 15), " | ",
                     Formatting.pad(Formatting.formatEther(vm, ethReceived, 4), 15), " | ",
                     Formatting.pad(Formatting.formatTokens(vm, tokensLeft), 15), " | ",
-                    Formatting.pad(Formatting.formatEther(vm, pool.ethRaised(), 4), 15), " | ",
+                    Formatting.pad(Formatting.formatEther(vm, lotry.ethRaised(), 4), 15), " | ",
                     Formatting.pad(Formatting.formatSmallPrice(vm, currentPrice), 20), " | ",
                     Formatting.pad(Formatting.formatUsd(vm, marketCapUsd), 20), " | ",
-                    Formatting.formatEther(vm, pool.accumulatedPoolFee(), 6)
+                    Formatting.formatEther(vm, lotry.accumulatedPoolFee(), 6)
                 );
                 console.log(row);
             }
         }
 
-        assertGt(pool.ethRaised(), 0);
+        assertGt(lotry.ethRaised(), 0);
     }
 
     function test_priceIncreaseSimulation50Buys() public {
@@ -219,7 +219,7 @@ contract PoolSimulationTest is Test {
 
         uint256[] memory buyAmounts = new uint256[](numberOfBuys);
         uint256[] memory tokensBought = new uint256[](numberOfBuys);
-        uint256 initialPrice = pool.calculateCurrentPrice();
+        uint256 initialPrice = lotry.calculateCurrentPrice();
 
         for (uint i = 0; i < numberOfBuys; i++) {
             buyAmounts[i] =
@@ -231,21 +231,21 @@ contract PoolSimulationTest is Test {
         for (uint i = 0; i < numberOfBuys; i++) {
             address currentBuyer = buyers[i % buyers.length];
             vm.prank(currentBuyer);
-            uint256 tokenBalanceBefore = pool.balanceOf(currentBuyer);
-            uint256 priceBefore = pool.calculateCurrentPrice();
+            uint256 tokenBalanceBefore = lotry.balanceOf(currentBuyer);
+            uint256 priceBefore = lotry.calculateCurrentPrice();
 
-            pool.buy{value: buyAmounts[i]}();
-            uint256 tokensReceived = pool
+            lotry.buy{value: buyAmounts[i]}();
+            uint256 tokensReceived = lotry
                 .balanceOf(currentBuyer) - tokenBalanceBefore;
             tokensBought[i] = tokensReceived;
-            uint256 priceAfter = pool.calculateCurrentPrice();
+            uint256 priceAfter = lotry.calculateCurrentPrice();
             int256 priceChange = int256(priceAfter) - int256(priceBefore);
             int256 priceIncreasePercent = int256(priceChange * 100) / int256(initialPrice);
 
             uint256 marketCapInEth = calculateMarketCapEth(
                 priceAfter,
-                pool.INITIAL_SUPPLY() - pool.balanceOf(address(pool)),
-                pool.virtualTokenReserve()
+                lotry.INITIAL_SUPPLY() - lotry.balanceOf(address(lotry)),
+                lotry.virtualTokenReserve()
             );
             uint256 marketCapUsd = (marketCapInEth * ethToUsdRate) / 1e18;
             
@@ -262,7 +262,7 @@ contract PoolSimulationTest is Test {
             );
             console.log(row);
         }
-        assertGt(pool.accumulatedPoolFee(), 0);
+        assertGt(lotry.accumulatedPoolFee(), 0);
 
         console.log("\n--- Individual Sell Results ---");
         header = string.concat(
@@ -276,15 +276,15 @@ contract PoolSimulationTest is Test {
 
         for (uint i = 0; i < numberOfBuys; i++) {
             address currentBuyer = buyers[i % buyers.length];
-            if (pool.balanceOf(currentBuyer) > 0) {
+            if (lotry.balanceOf(currentBuyer) > 0) {
                 vm.prank(currentBuyer);
                 uint256 ethBefore = currentBuyer.balance;
                 uint256 tokensToSell = tokensBought[i];
-                if (pool.balanceOf(currentBuyer) < tokensToSell) {
-                    tokensToSell = pool.balanceOf(currentBuyer);
+                if (lotry.balanceOf(currentBuyer) < tokensToSell) {
+                    tokensToSell = lotry.balanceOf(currentBuyer);
                 }
 
-                pool.sell(tokensToSell);
+                lotry.sell(tokensToSell);
                 uint256 ethReceived = currentBuyer.balance - ethBefore;
                 int256 profitLoss = int256(ethReceived) -
                     int256(buyAmounts[i]);
@@ -306,8 +306,8 @@ contract PoolSimulationTest is Test {
     function test_tokenDepletionSimulation() public {
         createNewPool("Depletion Test Token", "DTT");
 
-        uint256 INITIAL_SUPPLY = pool.INITIAL_SUPPLY();
-        uint256 initialPrice = pool.calculateCurrentPrice();
+        uint256 INITIAL_SUPPLY = lotry.INITIAL_SUPPLY();
+        uint256 initialPrice = lotry.calculateCurrentPrice();
         console.log("--- Token Depletion Simulation ---");
         console.log("Initial token supply:", Formatting.formatTokens(vm, INITIAL_SUPPLY));
         console.log("Initial price:", Formatting.formatSmallPrice(vm, initialPrice));
@@ -330,20 +330,20 @@ contract PoolSimulationTest is Test {
         console.log(header);
 
         for (uint i = 0; i < 100 && tokensSoldTotal < targetTokens; i++) {
-            uint256 tokensLeftBefore = pool.balanceOf(address(pool));
+            uint256 tokensLeftBefore = lotry.balanceOf(address(lotry));
             if (tokensLeftBefore == 0) break;
 
             vm.prank(buyer1);
-            uint256 balanceBefore = pool.balanceOf(buyer1);
-            try pool.buy{value: buyAmount}() {
-                uint256 balanceAfter = pool.balanceOf(buyer1);
+            uint256 balanceBefore = lotry.balanceOf(buyer1);
+            try lotry.buy{value: buyAmount}() {
+                uint256 balanceAfter = lotry.balanceOf(buyer1);
                 uint256 tokensReceived = balanceAfter - balanceBefore;
 
                 totalEthSpent += buyAmount;
-                tokensSoldTotal = INITIAL_SUPPLY - pool.balanceOf(address(pool));
+                tokensSoldTotal = INITIAL_SUPPLY - lotry.balanceOf(address(lotry));
                 buyCount++;
 
-                uint256 currentPrice = pool.calculateCurrentPrice();
+                uint256 currentPrice = lotry.calculateCurrentPrice();
                 string memory priceMult = string.concat(vm.toString(currentPrice / initialPrice), "x");
 
                 string memory row = string.concat(
@@ -351,7 +351,7 @@ contract PoolSimulationTest is Test {
                     Formatting.pad(Formatting.formatEther(vm, buyAmount, 4), 10), " | ",
                     Formatting.pad(Formatting.formatTokens(vm, tokensReceived), 15), " | ",
                     Formatting.pad(Formatting.formatTokens(vm, tokensSoldTotal), 15), " | ",
-                    Formatting.pad(Formatting.formatTokens(vm, pool.balanceOf(address(pool))), 15), " | ",
+                    Formatting.pad(Formatting.formatTokens(vm, lotry.balanceOf(address(lotry))), 15), " | ",
                     Formatting.pad(Formatting.formatSmallPrice(vm, currentPrice), 20), " | ",
                     priceMult
                 );
@@ -373,12 +373,12 @@ contract PoolSimulationTest is Test {
         console.log("Tokens sold:", Formatting.formatTokens(vm, tokensSoldTotal));
         console.log(
             "Tokens remaining:",
-            Formatting.formatTokens(vm, pool.balanceOf(address(pool)))
+            Formatting.formatTokens(vm, lotry.balanceOf(address(lotry)))
         );
-        console.log("Final price:", Formatting.formatSmallPrice(vm, pool.calculateCurrentPrice()));
+        console.log("Final price:", Formatting.formatSmallPrice(vm, lotry.calculateCurrentPrice()));
         console.log(
             "Price increase:",
-            string.concat(vm.toString(pool.calculateCurrentPrice() / initialPrice), "x")
+            string.concat(vm.toString(lotry.calculateCurrentPrice() / initialPrice), "x")
         );
 
         assertGt(totalEthSpent, 0);
@@ -465,22 +465,22 @@ contract PoolSimulationTest is Test {
 
         for (uint i = 0; i < actions.length; i++) {
             Action memory action = actions[i];
-            uint256 priceBefore = pool.calculateCurrentPrice();
+            uint256 priceBefore = lotry.calculateCurrentPrice();
             string memory traderStr = string.concat(Formatting.slice(vm.toString(action.trader), 0, 6), "...");
             
             if (action.actionType == ActionType.Buy) {
                 vm.prank(action.trader);
-                uint256 tokenBalanceBefore = pool.balanceOf(action.trader);
-                pool.buy{value: action.amount}();
-                uint256 tokensReceived = pool.balanceOf(action.trader) -
+                uint256 tokenBalanceBefore = lotry.balanceOf(action.trader);
+                lotry.buy{value: action.amount}();
+                uint256 tokensReceived = lotry.balanceOf(action.trader) -
                     tokenBalanceBefore;
-                uint256 priceAfter = pool.calculateCurrentPrice();
+                uint256 priceAfter = lotry.calculateCurrentPrice();
                 int256 priceChange = int256(priceAfter) - int256(priceBefore);
                 int256 priceChangePercent = int256(priceChange * 100) / int256(priceBefore);
                 uint256 marketCapInEth = calculateMarketCapEth(
                     priceAfter,
-                    pool.INITIAL_SUPPLY() - pool.balanceOf(address(pool)),
-                    pool.virtualTokenReserve()
+                    lotry.INITIAL_SUPPLY() - lotry.balanceOf(address(lotry)),
+                    lotry.virtualTokenReserve()
                 );
                 uint256 marketCapUsd = (marketCapInEth * ethToUsdRate) / 1e18;
 
@@ -496,27 +496,27 @@ contract PoolSimulationTest is Test {
                     Formatting.pad(Formatting.formatPercent(vm, priceChangePercent), 12), " | ",
                     Formatting.pad(Formatting.formatSmallPrice(vm, priceAfter), 20), " | ",
                     Formatting.pad(Formatting.formatUsd(vm, marketCapUsd), 20), " | ",
-                    Formatting.formatEther(vm, pool.ethRaised(), 4)
+                    Formatting.formatEther(vm, lotry.ethRaised(), 4)
                 );
                 console.log(row);
 
             } else {
-                uint256 traderBalance = pool.balanceOf(action.trader);
+                uint256 traderBalance = lotry.balanceOf(action.trader);
                 if (traderBalance > 0) {
                     uint256 sellAmount = (traderBalance * action.amount) / 100;
                     vm.prank(action.trader);
                     uint256 ethBalanceBefore = action.trader.balance;
-                    pool.sell(sellAmount);
+                    lotry.sell(sellAmount);
                     uint256 ethReceived = action.trader.balance -
                         ethBalanceBefore;
-                    uint256 priceAfter = pool.calculateCurrentPrice();
+                    uint256 priceAfter = lotry.calculateCurrentPrice();
                     int256 priceChange = int256(priceAfter) -
                         int256(priceBefore);
                     int256 priceChangePercent = int256(priceChange * 100) / int256(priceBefore);
                     uint256 marketCapInEth = calculateMarketCapEth(
                         priceAfter,
-                        pool.INITIAL_SUPPLY() - pool.balanceOf(address(pool)),
-                        pool.virtualTokenReserve()
+                        lotry.INITIAL_SUPPLY() - lotry.balanceOf(address(lotry)),
+                        lotry.virtualTokenReserve()
                     );
                     uint256 marketCapUsd = (marketCapInEth * ethToUsdRate) / 1e18;
 
@@ -532,12 +532,12 @@ contract PoolSimulationTest is Test {
                         Formatting.pad(Formatting.formatPercent(vm, priceChangePercent), 12), " | ",
                         Formatting.pad(Formatting.formatSmallPrice(vm, priceAfter), 20), " | ",
                         Formatting.pad(Formatting.formatUsd(vm, marketCapUsd), 20), " | ",
-                        Formatting.formatEther(vm, pool.ethRaised(), 4)
+                        Formatting.formatEther(vm, lotry.ethRaised(), 4)
                     );
                     console.log(row);
                 }
             }
         }
-        assertTrue(pool.ethRaised() >= 0);
+        assertTrue(lotry.ethRaised() >= 0);
     }
 }

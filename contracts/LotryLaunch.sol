@@ -4,9 +4,9 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-import "./Pool.sol";
+import "./LotryTicket.sol";
 
-contract TokenLaunchpad is Ownable {
+contract LotryLaunch is Ownable {
 
     uint256 public tokenCount;
 
@@ -26,7 +26,7 @@ contract TokenLaunchpad is Ownable {
         string calldata name,
         string calldata symbol
     ) public returns (address) {
-        BondingCurvePool newToken = new BondingCurvePool(
+        LotryTicket newToken = new LotryTicket(
             name,
             symbol,
             msg.sender
