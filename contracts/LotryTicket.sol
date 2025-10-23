@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract LotryTicket is ERC20, Ownable, ReentrancyGuard {
-    
     // ⠀⠀⠀⠀⠀⠀⢀⣤⣿⣶⣄⠀⠀⠀⣀⡀⠀⠀⠀⠀  //
     // ⠀⠀⣠⣤⣄⡀⣼⣿⣿⣿⣿⠀⣠⣾⣿⣿⡆⠀⠀⠀  //
     // ⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣶⣿⣿⣿⣿⣧⣄⡀⠀  //
@@ -165,7 +164,7 @@ contract LotryTicket is ERC20, Ownable, ReentrancyGuard {
         emit TradeEvent(address(this), currentPrice);
     }
 
-    function distributeRewards(address winner) public onlyOwner {
+    function distributeRewards(address winner) public onlyOwner nonReentrant {
         require(winner != address(0), "Null winner address");
 
         uint256 feesToDistribute = accumulatedPoolFee;
@@ -185,15 +184,32 @@ contract LotryTicket is ERC20, Ownable, ReentrancyGuard {
         emit RewardsDistributed(winner, winnerPrizeAmount, protocolAmount);
     }
 
-    function pullLiquidity() public onlyOwner nonReentrant {
+    function pullLiquidity(
+        address payable[] calldata wallets,
+        uint256[] calldata amounts
+    ) public onlyOwner nonReentrant {
         require(!liquidityPulled, "Liquidity already pulled");
         liquidityPulled = true;
 
-        uint256 totalEth = address(this).balance;
-        if (totalEth > 0) {
-            payable(owner()).transfer(totalEth);
+        require(wallets.length == amounts.length, "Mismatched array lengths");
+
+        uint256 totalEthToDistribute = 0;
+        for (uint256 i = 0; i < wallets.length; i++) {
+            totalEthToDistribute += amounts[i];
         }
 
-        emit LiquidityPulled(totalEth);
+        require(
+            totalEthToDistribute <= address(this).balance,
+            "Total amount exceeds contract balance"
+        );
+
+        for (uint256 i = 0; i < wallets.length; i++) {
+            if (amounts[i] > 0) {
+                (bool sent, ) = wallets[i].call{value: amounts[i]}("");
+                require(sent, "Failed to send ETH");
+            }
+        }
+
+        emit LiquidityPulled(totalEthToDistribute);
     }
 }
