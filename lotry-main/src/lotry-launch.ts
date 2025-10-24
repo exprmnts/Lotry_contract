@@ -3,6 +3,8 @@ import {
   TokenCreated as TokenCreatedEvent
 } from "../generated/LotryLaunch/LotryLaunch"
 import { OwnershipTransferred, TokenCreated } from "../generated/schema"
+import { LotryTicket as LotryTicketTemplate } from "../generated/templates"
+
 
 export function handleOwnershipTransferred(
   event: OwnershipTransferredEvent
@@ -21,9 +23,13 @@ export function handleOwnershipTransferred(
 }
 
 export function handleTokenCreated(event: TokenCreatedEvent): void {
+
+  LotryTicketTemplate.create(event.params.tokenAddress)
+
   let entity = new TokenCreated(
     event.transaction.hash.concatI32(event.logIndex.toI32())
   )
+
   entity.tokenAddress = event.params.tokenAddress
   entity.creator = event.params.creator
   entity.tokenId = event.params.tokenId
