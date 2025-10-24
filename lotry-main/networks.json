@@ -1,8 +1,0 @@
-{
-  "base-sepolia": {
-    "LotryLaunch": {
-      "address": "0xFAf53333b061b5037E2C35A27950bF2C3B07e0a8",
-      "startBlock": 32769941
-    }
-  }
-}
