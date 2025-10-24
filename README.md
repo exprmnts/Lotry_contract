@@ -275,6 +275,12 @@ As Foundry script runs as a single, synchronous operation. It can't pause and wa
 cast call $DEPLOYED_VRF_CA "getPickedWallet()" --rpc-url $RPC_URL
 ```
 
+### IF .env not working bcz of using WSL
+
+```bash
+dos2unix .envrc .env.base_sepolia
+```
+
 ## 🔒 Security
 
 ### Security Considerations
