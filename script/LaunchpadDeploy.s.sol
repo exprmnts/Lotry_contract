@@ -3,14 +3,14 @@ pragma solidity ^0.8.20;
 
 import "forge-std/Script.sol";
 import {LotryLaunch} from "../contracts/LotryLaunch.sol";
+import {LotryTicket} from "../contracts/LotryTicket.sol";
 
 contract LaunchpadDeploy is Script {
     function run() external {
         vm.startBroadcast();
 
-        // Deploy the launchpad contract with the deployer as initial owner
         LotryLaunch launchpad = new LotryLaunch(msg.sender);
-        console2.log("TokenLaunchpad deployed at", address(launchpad));
+        console2.log("LotryLaunch deployed at:", address(launchpad));
 
         vm.stopBroadcast();
     }

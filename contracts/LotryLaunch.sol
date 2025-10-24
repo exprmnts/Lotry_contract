@@ -34,32 +34,21 @@ contract LotryLaunch is Ownable {
     constructor(address initialOwner) Ownable(initialOwner) {}
 
     // Function to create a new ERC20 token
-    function launchToken(
-        string calldata name,
-        string calldata symbol
-    ) public returns (address) {
-        LotryTicket newToken = new LotryTicket(
-            name,
-            symbol,
-            msg.sender
-        );
-
+    function launchToken(string calldata name, string calldata symbol, address[] calldata initialWhitelist)
+        public
+        returns (address)
+    {
+        LotryTicket newToken = new LotryTicket(name, symbol, msg.sender, initialWhitelist);
 
         address tokenAddress = address(newToken);
 
         // Emit event about token creation
-        emit TokenCreated(
-            tokenAddress,
-            msg.sender,
-            tokenCount,
-            block.timestamp,
-            name,
-            symbol
-        );
+        emit TokenCreated(tokenAddress, msg.sender, tokenCount, block.timestamp, name, symbol);
 
-        unchecked { ++tokenCount; }
-        
+        unchecked {
+            ++tokenCount;
+        }
+
         return tokenAddress;
     }
-
 }
