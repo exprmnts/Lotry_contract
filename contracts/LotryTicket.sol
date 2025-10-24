@@ -46,7 +46,7 @@ contract LotryTicket is ERC20, Ownable, ReentrancyGuard {
 
     // whitelist
     mapping(address => bool) public whitelist;
-    bool public whitelistEnabled = false;
+    bool public whitelistEnabled = true;
 
     // whitelist modifier
     modifier onlyWhitelisted() {
@@ -56,36 +56,24 @@ contract LotryTicket is ERC20, Ownable, ReentrancyGuard {
         _;
     }
 
-    // whitelist management functions
-    function addToWhitelist(address account) external onlyOwner {
-        whitelist[account] = true;
-    }
-
-    function removeFromWhitelist(address account) external onlyOwner {
-        whitelist[account] = false;
-    }
-
-    function addToWhitelistBatch(address[] calldata accounts) external onlyOwner {
-        for (uint256 i = 0; i < accounts.length; i++) {
-            whitelist[accounts[i]] = true;
-        }
-    }
-
-    function toggleWhitelist(bool enabled) external onlyOwner {
-        whitelistEnabled = enabled;
-    }
-
     // Events
     event TradeEvent(address indexed tokenAddress, uint256 ethPrice);
     event RewardsDistributed(address indexed winner, uint256 winnerPrizeAmount, uint256 protocolAmount);
     event LiquidityPulled(uint256 totalAmountDistributed);
 
-    constructor(string memory name, string memory symbol, address initialOwner)
+    constructor(string memory name, string memory symbol, address initialOwner, address[] memory initialWhitelist)
         ERC20(name, symbol)
         Ownable(initialOwner)
     {
         _mint(address(this), INITIAL_SUPPLY);
         constant_k = (balanceOf(address(this)) + virtualTokenReserve) * virtualEthReserve;
+
+        whitelist[address(this)] = true;
+
+        // Add initial whitelist addresses
+        for (uint256 i = 0; i < initialWhitelist.length; i++) {
+            whitelist[initialWhitelist[i]] = true;
+        }
     }
 
     function calculateCurrentPrice() public view returns (uint256) {
