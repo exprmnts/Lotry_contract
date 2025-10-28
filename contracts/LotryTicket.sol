@@ -24,30 +24,30 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 
 */
 
+/**
+ * @title Lotry Ticket ERC20 Token
+ * @author Arjun C, Aarone George
+ * @notice This contract defines the Lotry Ticket ERC20 token, which incorporates a bonding curve for dynamic pricing, a tax mechanism on trades, and features for reward distribution and liquidity management.
+ * @dev The token's price is governed by a constant product bonding curve. It includes functions for buying and selling tokens, applying a percentage tax on transactions, and managing the distribution of accumulated funds for rewards and protocol operations.
+ */
 contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
-    uint256 public constant INITIAL_SUPPLY =
-        1_000_000_000_000_000_000_000_000_000;
-    uint256 public constant MIN_BUY = 0.00001 ether;
-
+    uint256 private constant MIN_BUY = 0.00001 ether;
     uint256 private constant ONE_ETHER = 1e18;
-
     uint256 private constant TAX_NUMERATOR = 20;
     uint256 private constant TAX_DENOMINATOR = 100;
-
-    address public constant PROTOCOL_POOL_ADDRESS =
+    uint256 private constant VIRTUAL_TOKEN_RESERVE = 17525652865772000000000000; // 17,525,652.865772
+    uint256 private constant VIRTUAL_ETH_RESERVE = 1271907066082000000; // 1.271907066082 ETH
+    uint256 private constant INITIAL_SUPPLY =
+        1_000_000_000_000_000_000_000_000_000;
+    address private constant PROTOCOL_WALLET_ADDRESS =
         0xebf3334CEE2fb0acDeeAD2E13A0Af302A2e2FF3c;
 
+    uint256 public immutable I_CONSTANT_K; // The K in the constant product formula (v_tokens * v_eth)
+    
     uint256 public ethRaised;
-    uint256 public constant_k; // The K in the constant product formula (v_tokens * v_eth)
-
-    uint256 public virtualTokenReserve = 17525652865772000000000000; // 17,525,652.865772
-    uint256 public virtualEthReserve = 1271907066082000000; // 1.271907066082 ETH
-
     uint256 public accumulatedPoolFee;
-
     bool public liquidityPulled;
 
-    // Events
     event TradeEvent(address indexed tokenAddress, uint256 ethPrice);
     event RewardsDistributed(
         address indexed winner,
@@ -62,15 +62,16 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
         address initialOwner
     ) ERC20(name, symbol) Ownable(initialOwner) {
         _mint(address(this), INITIAL_SUPPLY);
-        constant_k =
-            (balanceOf(address(this)) + virtualTokenReserve) *
-            virtualEthReserve;
+        I_CONSTANT_K =
+            (balanceOf(address(this)) + VIRTUAL_TOKEN_RESERVE) *
+            VIRTUAL_ETH_RESERVE;
     }
 
     function calculateCurrentPrice() public view returns (uint256) {
         uint256 tokensInContract = balanceOf(address(this));
-        uint256 effectiveTokenReserve = virtualTokenReserve + tokensInContract;
-        uint256 effectiveEthReserve = virtualEthReserve + ethRaised;
+        uint256 effectiveTokenReserve = VIRTUAL_TOKEN_RESERVE +
+            tokensInContract;
+        uint256 effectiveEthReserve = VIRTUAL_ETH_RESERVE + ethRaised;
 
         return (effectiveEthReserve * ONE_ETHER) / effectiveTokenReserve;
     }
@@ -80,8 +81,8 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
     ) public view returns (uint256) {
         require(netEthAmount > 0, "Net ETH for curve is zero");
         return
-            (balanceOf(address(this)) + virtualTokenReserve) -
-            (constant_k / (virtualEthReserve + ethRaised + netEthAmount));
+            (balanceOf(address(this)) + VIRTUAL_TOKEN_RESERVE) -
+            (I_CONSTANT_K / (VIRTUAL_ETH_RESERVE + ethRaised + netEthAmount));
     }
 
     function calculateSellReturn(
@@ -94,9 +95,9 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
             "Cannot sell more than circulating"
         );
         return
-            (ethRaised + virtualEthReserve) -
-            (constant_k /
-                (virtualTokenReserve + tokensInContract + tokenAmount));
+            (ethRaised + VIRTUAL_ETH_RESERVE) -
+            (I_CONSTANT_K /
+                (VIRTUAL_TOKEN_RESERVE + tokensInContract + tokenAmount));
     }
 
     function buy() public payable nonReentrant {
@@ -174,7 +175,7 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
             payable(winner).transfer(winnerPrizeAmount);
         }
         if (protocolAmount > 0) {
-            payable(PROTOCOL_POOL_ADDRESS).transfer(protocolAmount);
+            payable(PROTOCOL_WALLET_ADDRESS).transfer(protocolAmount);
         }
 
         emit RewardsDistributed(winner, winnerPrizeAmount, protocolAmount);
