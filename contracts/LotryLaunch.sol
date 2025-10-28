@@ -23,6 +23,11 @@ import {LotryTicket} from "./LotryTicket.sol";
 
 */
 
+/**
+ * @title Lotry Token Launchpad
+ * @author Arjun C, Aarone George
+ * @notice This contract is for deploying a Lotry Token.
+ */
 contract LotryLaunch is Ownable {
     uint256 public tokenCount;
 
@@ -37,7 +42,6 @@ contract LotryLaunch is Ownable {
 
     constructor(address initialOwner) Ownable(initialOwner) {}
 
-    // Function to create a new ERC20 token
     function launchToken(
         string calldata name,
         string calldata symbol

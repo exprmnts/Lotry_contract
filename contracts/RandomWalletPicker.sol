@@ -23,25 +23,31 @@ import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/V
 
 */
 
+/**
+ * @title Random Wallet Picker Contract
+ * @author Arjun C, Aarone George
+ * @notice This contract is for picking a random wallet based on stakes.
+ * @dev This contract uses Chainlink VRF to generate a random number and pick a random ticket/token.
+ */
 contract RandomWalletPicker is VRFConsumerBaseV2Plus {
     // Chainlink VRF Configuration
-    bytes32 immutable i_keyHash;
-    uint256 immutable i_subscriptionId;
-    uint32 public i_callbackGasLimit = 200000;
-    uint16 public i_requestConfirmations = 3;
-    uint32 public i_numWords = 1;
+    bytes32 immutable I_KEY_HASH;
+    uint256 immutable I_SUBSCRIPTION_ID;
+    uint32 public iCallbackGasLimit = 200000;
+    uint16 public iRequestConfirmations = 3;
+    uint32 public iNumWords = 1;
 
     // Request state
-    bool public s_requestInProgress;
-    uint256 public s_lastRequestId;
+    bool public sRequestInProgress;
+    uint256 public sLastRequestId;
 
     // Data for the current/last request
-    address payable[] public s_participants;
-    uint256[] public s_stakes;
-    uint256 public s_totalStakes;
+    address payable[] public sParticipants;
+    uint256[] public sStakes;
+    uint256 public sTotalStakes;
 
     // Result variables
-    uint256 public s_randomWord;
+    uint256 public sRandomWord;
     address payable public pickedWallet;
 
     // Events
@@ -62,8 +68,8 @@ contract RandomWalletPicker is VRFConsumerBaseV2Plus {
         uint256 _subscriptionId,
         bytes32 _keyHash
     ) VRFConsumerBaseV2Plus(_vrfCoordinatorAddress) {
-        i_keyHash = _keyHash;
-        i_subscriptionId = _subscriptionId;
+        I_KEY_HASH = _keyHash;
+        I_SUBSCRIPTION_ID = _subscriptionId;
     }
 
     /**
@@ -76,35 +82,35 @@ contract RandomWalletPicker is VRFConsumerBaseV2Plus {
         address payable[] memory _newParticipants,
         uint256[] memory _newStakes
     ) public onlyOwner returns (uint256 requestId) {
-        require(!s_requestInProgress, "A request is already in progress");
+        require(!sRequestInProgress, "A request is already in progress");
         require(_newParticipants.length > 0, "No participants provided");
         require(
             _newParticipants.length == _newStakes.length,
             "Participants and stakes must have the same length"
         );
 
-        s_requestInProgress = true;
+        sRequestInProgress = true;
 
-        delete s_participants;
-        delete s_stakes;
+        delete sParticipants;
+        delete sStakes;
 
         uint256 totalStakes = 0;
         for (uint i = 0; i < _newParticipants.length; i++) {
             require(_newStakes[i] > 0, "Stake must be positive");
-            s_participants.push(_newParticipants[i]);
-            s_stakes.push(_newStakes[i]);
+            sParticipants.push(_newParticipants[i]);
+            sStakes.push(_newStakes[i]);
             totalStakes += _newStakes[i];
         }
         require(totalStakes > 0, "Total stakes must be positive");
-        s_totalStakes = totalStakes;
+        sTotalStakes = totalStakes;
 
         VRFV2PlusClient.RandomWordsRequest memory req = VRFV2PlusClient
             .RandomWordsRequest({
-                keyHash: i_keyHash,
-                subId: i_subscriptionId,
-                requestConfirmations: i_requestConfirmations,
-                callbackGasLimit: i_callbackGasLimit,
-                numWords: i_numWords,
+                keyHash: I_KEY_HASH,
+                subId: I_SUBSCRIPTION_ID,
+                requestConfirmations: iRequestConfirmations,
+                callbackGasLimit: iCallbackGasLimit,
+                numWords: iNumWords,
                 extraArgs: VRFV2PlusClient._argsToBytes(
                     VRFV2PlusClient.ExtraArgsV1({nativePayment: true})
                 )
@@ -112,7 +118,7 @@ contract RandomWalletPicker is VRFConsumerBaseV2Plus {
 
         requestId = s_vrfCoordinator.requestRandomWords(req);
 
-        s_lastRequestId = requestId;
+        sLastRequestId = requestId;
         emit RandomnessRequested(requestId, msg.sender, totalStakes);
         return requestId;
     }
@@ -126,25 +132,25 @@ contract RandomWalletPicker is VRFConsumerBaseV2Plus {
         uint256 requestId,
         uint256[] calldata randomWords
     ) internal override {
-        require(requestId == s_lastRequestId, "Invalid request ID");
+        require(requestId == sLastRequestId, "Invalid request ID");
         require(randomWords.length > 0, "No random words returned");
-        require(s_participants.length > 0, "No participants for this request");
+        require(sParticipants.length > 0, "No participants for this request");
 
-        s_randomWord = randomWords[0];
-        uint256 randomNumber = s_randomWord % s_totalStakes;
+        sRandomWord = randomWords[0];
+        uint256 randomNumber = sRandomWord % sTotalStakes;
 
         uint256 cumulativeStakes = 0;
         address payable winner;
-        for (uint i = 0; i < s_participants.length; i++) {
-            cumulativeStakes += s_stakes[i];
+        for (uint i = 0; i < sParticipants.length; i++) {
+            cumulativeStakes += sStakes[i];
             if (randomNumber < cumulativeStakes) {
-                winner = s_participants[i];
+                winner = sParticipants[i];
                 break;
             }
         }
 
         pickedWallet = winner;
-        s_requestInProgress = false;
+        sRequestInProgress = false;
 
         emit WalletPicked(requestId, pickedWallet);
     }
@@ -168,7 +174,7 @@ contract RandomWalletPicker is VRFConsumerBaseV2Plus {
         view
         returns (address payable[] memory)
     {
-        return s_participants;
+        return sParticipants;
     }
 
     /**
@@ -176,7 +182,7 @@ contract RandomWalletPicker is VRFConsumerBaseV2Plus {
      * @return An array of participant stakes.
      */
     function getAllStakes() public view returns (uint256[] memory) {
-        return s_stakes;
+        return sStakes;
     }
 
     /**
@@ -184,7 +190,7 @@ contract RandomWalletPicker is VRFConsumerBaseV2Plus {
      * @return VRF coordinator address, subscription ID, and key hash
      */
     function getVrfParams() external view returns (address, uint256, bytes32) {
-        return (address(s_vrfCoordinator), i_subscriptionId, i_keyHash);
+        return (address(s_vrfCoordinator), I_SUBSCRIPTION_ID, I_KEY_HASH);
     }
 
     // --- Admin Functions ---
@@ -194,7 +200,7 @@ contract RandomWalletPicker is VRFConsumerBaseV2Plus {
      * @param _newCallbackGasLimit The new gas limit for the callback.
      */
     function setCallbackGasLimit(uint32 _newCallbackGasLimit) public onlyOwner {
-        i_callbackGasLimit = _newCallbackGasLimit;
+        iCallbackGasLimit = _newCallbackGasLimit;
     }
 
     /**
@@ -204,7 +210,7 @@ contract RandomWalletPicker is VRFConsumerBaseV2Plus {
     function setRequestConfirmations(
         uint16 _newRequestConfirmations
     ) public onlyOwner {
-        i_requestConfirmations = _newRequestConfirmations;
+        iRequestConfirmations = _newRequestConfirmations;
     }
 
     /**
@@ -212,7 +218,7 @@ contract RandomWalletPicker is VRFConsumerBaseV2Plus {
      * @param _newNumWords The new number of random words.
      */
     function setNumWords(uint32 _newNumWords) public onlyOwner {
-        i_numWords = _newNumWords;
+        iNumWords = _newNumWords;
     }
 
     // Fallback function to receive ETH
