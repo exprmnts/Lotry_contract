@@ -11,11 +11,7 @@ contract VRFDeploy is Script {
         bytes32 keyHash = vm.envBytes32("KEY_HASH");
 
         vm.startBroadcast();
-        RandomWalletPicker picker = new RandomWalletPicker(
-            coordinator,
-            subId,
-            keyHash
-        );
+        RandomWalletPicker picker = new RandomWalletPicker(coordinator, subId, keyHash);
         console2.log("RandomWalletPicker deployed at", address(picker));
         vm.stopBroadcast();
     }

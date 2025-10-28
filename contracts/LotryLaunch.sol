@@ -42,22 +42,12 @@ contract LotryLaunch is Ownable {
 
     constructor(address initialOwner) Ownable(initialOwner) {}
 
-    function launchToken(
-        string calldata name,
-        string calldata symbol
-    ) public returns (address) {
+    function launchToken(string calldata name, string calldata symbol) public returns (address) {
         LotryTicket newToken = new LotryTicket(name, symbol, msg.sender);
 
         address tokenAddress = address(newToken);
 
-        emit TokenCreated(
-            tokenAddress,
-            msg.sender,
-            tokenCount,
-            block.timestamp,
-            name,
-            symbol
-        );
+        emit TokenCreated(tokenAddress, msg.sender, tokenCount, block.timestamp, name, symbol);
 
         unchecked {
             ++tokenCount;

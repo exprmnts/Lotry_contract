@@ -52,22 +52,16 @@ contract RandomWalletPicker is VRFConsumerBaseV2Plus {
 
     // Events
     event WalletPicked(uint256 indexed requestId, address indexed winner);
-    event RandomnessRequested(
-        uint256 indexed requestId,
-        address requester,
-        uint256 totalStakes
-    );
+    event RandomnessRequested(uint256 indexed requestId, address requester, uint256 totalStakes);
 
     /**
      * @param _vrfCoordinatorAddress VRF Coordinator address
      * @param _subscriptionId Your uint256 subscription ID from vrf.chain.link
      * @param _keyHash The gas lane key hash
      */
-    constructor(
-        address _vrfCoordinatorAddress,
-        uint256 _subscriptionId,
-        bytes32 _keyHash
-    ) VRFConsumerBaseV2Plus(_vrfCoordinatorAddress) {
+    constructor(address _vrfCoordinatorAddress, uint256 _subscriptionId, bytes32 _keyHash)
+        VRFConsumerBaseV2Plus(_vrfCoordinatorAddress)
+    {
         I_KEY_HASH = _keyHash;
         I_SUBSCRIPTION_ID = _subscriptionId;
     }
@@ -78,16 +72,14 @@ contract RandomWalletPicker is VRFConsumerBaseV2Plus {
      * @param _newStakes An array of stakes (e.g., number of tokens) for each wallet.
      * @return requestId The ID of the VRF request.
      */
-    function pickRandomWallet(
-        address payable[] memory _newParticipants,
-        uint256[] memory _newStakes
-    ) public onlyOwner returns (uint256 requestId) {
+    function pickRandomWallet(address payable[] memory _newParticipants, uint256[] memory _newStakes)
+        public
+        onlyOwner
+        returns (uint256 requestId)
+    {
         require(!sRequestInProgress, "A request is already in progress");
         require(_newParticipants.length > 0, "No participants provided");
-        require(
-            _newParticipants.length == _newStakes.length,
-            "Participants and stakes must have the same length"
-        );
+        require(_newParticipants.length == _newStakes.length, "Participants and stakes must have the same length");
 
         sRequestInProgress = true;
 
@@ -95,7 +87,7 @@ contract RandomWalletPicker is VRFConsumerBaseV2Plus {
         delete sStakes;
 
         uint256 totalStakes = 0;
-        for (uint i = 0; i < _newParticipants.length; i++) {
+        for (uint256 i = 0; i < _newParticipants.length; i++) {
             require(_newStakes[i] > 0, "Stake must be positive");
             sParticipants.push(_newParticipants[i]);
             sStakes.push(_newStakes[i]);
@@ -104,17 +96,14 @@ contract RandomWalletPicker is VRFConsumerBaseV2Plus {
         require(totalStakes > 0, "Total stakes must be positive");
         sTotalStakes = totalStakes;
 
-        VRFV2PlusClient.RandomWordsRequest memory req = VRFV2PlusClient
-            .RandomWordsRequest({
-                keyHash: I_KEY_HASH,
-                subId: I_SUBSCRIPTION_ID,
-                requestConfirmations: iRequestConfirmations,
-                callbackGasLimit: iCallbackGasLimit,
-                numWords: iNumWords,
-                extraArgs: VRFV2PlusClient._argsToBytes(
-                    VRFV2PlusClient.ExtraArgsV1({nativePayment: true})
-                )
-            });
+        VRFV2PlusClient.RandomWordsRequest memory req = VRFV2PlusClient.RandomWordsRequest({
+            keyHash: I_KEY_HASH,
+            subId: I_SUBSCRIPTION_ID,
+            requestConfirmations: iRequestConfirmations,
+            callbackGasLimit: iCallbackGasLimit,
+            numWords: iNumWords,
+            extraArgs: VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: true}))
+        });
 
         requestId = s_vrfCoordinator.requestRandomWords(req);
 
@@ -128,10 +117,7 @@ contract RandomWalletPicker is VRFConsumerBaseV2Plus {
      * @param requestId The ID of the request.
      * @param randomWords The array of random numbers provided by the oracle.
      */
-    function fulfillRandomWords(
-        uint256 requestId,
-        uint256[] calldata randomWords
-    ) internal override {
+    function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal override {
         require(requestId == sLastRequestId, "Invalid request ID");
         require(randomWords.length > 0, "No random words returned");
         require(sParticipants.length > 0, "No participants for this request");
@@ -141,7 +127,7 @@ contract RandomWalletPicker is VRFConsumerBaseV2Plus {
 
         uint256 cumulativeStakes = 0;
         address payable winner;
-        for (uint i = 0; i < sParticipants.length; i++) {
+        for (uint256 i = 0; i < sParticipants.length; i++) {
             cumulativeStakes += sStakes[i];
             if (randomNumber < cumulativeStakes) {
                 winner = sParticipants[i];
@@ -169,11 +155,7 @@ contract RandomWalletPicker is VRFConsumerBaseV2Plus {
      * @notice Gets all stored participants for the last request.
      * @return An array of participant addresses.
      */
-    function getAllParticipants()
-        public
-        view
-        returns (address payable[] memory)
-    {
+    function getAllParticipants() public view returns (address payable[] memory) {
         return sParticipants;
     }
 
@@ -207,9 +189,7 @@ contract RandomWalletPicker is VRFConsumerBaseV2Plus {
      * @notice Sets the request confirmations.
      * @param _newRequestConfirmations The new number of confirmations to wait for.
      */
-    function setRequestConfirmations(
-        uint16 _newRequestConfirmations
-    ) public onlyOwner {
+    function setRequestConfirmations(uint16 _newRequestConfirmations) public onlyOwner {
         iRequestConfirmations = _newRequestConfirmations;
     }
 
