@@ -37,67 +37,47 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
     uint256 private constant TAX_DENOMINATOR = 100;
     uint256 private constant VIRTUAL_TOKEN_RESERVE = 17525652865772000000000000; // 17,525,652.865772
     uint256 private constant VIRTUAL_ETH_RESERVE = 1271907066082000000; // 1.271907066082 ETH
-    uint256 private constant INITIAL_SUPPLY =
-        1_000_000_000_000_000_000_000_000_000;
-    address private constant PROTOCOL_WALLET_ADDRESS =
-        0xebf3334CEE2fb0acDeeAD2E13A0Af302A2e2FF3c;
+    uint256 private constant INITIAL_SUPPLY = 1_000_000_000_000_000_000_000_000_000;
+    address private constant PROTOCOL_WALLET_ADDRESS = 0xebf3334CEE2fb0acDeeAD2E13A0Af302A2e2FF3c;
 
     uint256 public immutable I_CONSTANT_K; // The K in the constant product formula (v_tokens * v_eth)
-    
+
     uint256 public ethRaised;
     uint256 public accumulatedPoolFee;
     bool public liquidityPulled;
 
     event TradeEvent(address indexed tokenAddress, uint256 ethPrice);
-    event RewardsDistributed(
-        address indexed winner,
-        uint256 winnerPrizeAmount,
-        uint256 protocolAmount
-    );
+    event RewardsDistributed(address indexed winner, uint256 winnerPrizeAmount, uint256 protocolAmount);
     event LiquidityPulled(uint256 totalAmountDistributed);
 
-    constructor(
-        string memory name,
-        string memory symbol,
-        address initialOwner
-    ) ERC20(name, symbol) Ownable(initialOwner) {
+    constructor(string memory name, string memory symbol, address initialOwner)
+        ERC20(name, symbol)
+        Ownable(initialOwner)
+    {
         _mint(address(this), INITIAL_SUPPLY);
-        I_CONSTANT_K =
-            (balanceOf(address(this)) + VIRTUAL_TOKEN_RESERVE) *
-            VIRTUAL_ETH_RESERVE;
+        I_CONSTANT_K = (balanceOf(address(this)) + VIRTUAL_TOKEN_RESERVE) * VIRTUAL_ETH_RESERVE;
     }
 
     function calculateCurrentPrice() public view returns (uint256) {
         uint256 tokensInContract = balanceOf(address(this));
-        uint256 effectiveTokenReserve = VIRTUAL_TOKEN_RESERVE +
-            tokensInContract;
+        uint256 effectiveTokenReserve = VIRTUAL_TOKEN_RESERVE + tokensInContract;
         uint256 effectiveEthReserve = VIRTUAL_ETH_RESERVE + ethRaised;
 
         return (effectiveEthReserve * ONE_ETHER) / effectiveTokenReserve;
     }
 
-    function calculateBuyReturn(
-        uint256 netEthAmount
-    ) public view returns (uint256) {
+    function calculateBuyReturn(uint256 netEthAmount) public view returns (uint256) {
         require(netEthAmount > 0, "Net ETH for curve is zero");
-        return
-            (balanceOf(address(this)) + VIRTUAL_TOKEN_RESERVE) -
-            (I_CONSTANT_K / (VIRTUAL_ETH_RESERVE + ethRaised + netEthAmount));
+        return (balanceOf(address(this)) + VIRTUAL_TOKEN_RESERVE)
+            - (I_CONSTANT_K / (VIRTUAL_ETH_RESERVE + ethRaised + netEthAmount));
     }
 
-    function calculateSellReturn(
-        uint256 tokenAmount
-    ) public view returns (uint256) {
+    function calculateSellReturn(uint256 tokenAmount) public view returns (uint256) {
         require(tokenAmount > 0, "Token amount must be > 0");
         uint256 tokensInContract = balanceOf(address(this));
-        require(
-            tokenAmount <= INITIAL_SUPPLY - tokensInContract,
-            "Cannot sell more than circulating"
-        );
-        return
-            (ethRaised + VIRTUAL_ETH_RESERVE) -
-            (I_CONSTANT_K /
-                (VIRTUAL_TOKEN_RESERVE + tokensInContract + tokenAmount));
+        require(tokenAmount <= INITIAL_SUPPLY - tokensInContract, "Cannot sell more than circulating");
+        return (ethRaised + VIRTUAL_ETH_RESERVE)
+            - (I_CONSTANT_K / (VIRTUAL_TOKEN_RESERVE + tokensInContract + tokenAmount));
     }
 
     function buy() public payable nonReentrant {
@@ -114,10 +94,7 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
 
         uint256 tokensToTransfer = calculateBuyReturn(netEthForCurve);
         require(tokensToTransfer > 0, "Would receive zero tokens for net ETH");
-        require(
-            tokensToTransfer <= balanceOf(address(this)),
-            "Insufficient token reserves"
-        );
+        require(tokensToTransfer <= balanceOf(address(this)), "Insufficient token reserves");
 
         // Update state
         ethRaised += netEthForCurve;
@@ -131,17 +108,11 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
     function sell(uint256 tokenAmount) public nonReentrant {
         require(!liquidityPulled, "Trading disabled");
         require(tokenAmount > 0, "Must sell more than 0 tokens");
-        require(
-            balanceOf(msg.sender) >= tokenAmount,
-            "Not enough tokens to sell"
-        );
+        require(balanceOf(msg.sender) >= tokenAmount, "Not enough tokens to sell");
 
         uint256 ethToReturnGross = calculateSellReturn(tokenAmount);
         require(ethToReturnGross > 0, "Would receive zero ETH");
-        require(
-            ethToReturnGross <= address(this).balance,
-            "Insufficient ETH in contract for sale"
-        );
+        require(ethToReturnGross <= address(this).balance, "Insufficient ETH in contract for sale");
 
         uint256 sellFee = (ethToReturnGross * TAX_NUMERATOR) / TAX_DENOMINATOR; // 20%
 
@@ -181,10 +152,11 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
         emit RewardsDistributed(winner, winnerPrizeAmount, protocolAmount);
     }
 
-    function pullLiquidity(
-        address payable[] calldata wallets,
-        uint256[] calldata amounts
-    ) public onlyOwner nonReentrant {
+    function pullLiquidity(address payable[] calldata wallets, uint256[] calldata amounts)
+        public
+        onlyOwner
+        nonReentrant
+    {
         require(!liquidityPulled, "Liquidity already pulled");
         liquidityPulled = true;
 
@@ -195,14 +167,11 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
             totalEthToDistribute += amounts[i];
         }
 
-        require(
-            totalEthToDistribute <= address(this).balance,
-            "Total amount exceeds contract balance"
-        );
+        require(totalEthToDistribute <= address(this).balance, "Total amount exceeds contract balance");
 
         for (uint256 i = 0; i < wallets.length; i++) {
             if (amounts[i] > 0) {
-                (bool sent, ) = wallets[i].call{value: amounts[i]}("");
+                (bool sent,) = wallets[i].call{value: amounts[i]}("");
                 require(sent, "Failed to send ETH");
             }
         }
