@@ -1,49 +1,50 @@
 // SPDX-License-Identifier: MIT
-
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract LotryTicket is ERC20, Ownable, ReentrancyGuard {
-    // ⠀⠀⠀⠀⠀⠀⢀⣤⣿⣶⣄⠀⠀⠀⣀⡀⠀⠀⠀⠀  //
-    // ⠀⠀⣠⣤⣄⡀⣼⣿⣿⣿⣿⠀⣠⣾⣿⣿⡆⠀⠀⠀  //
-    // ⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣶⣿⣿⣿⣿⣧⣄⡀⠀  //
-    // ⠀⠀⠻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡄  //
-    // ⠀⠀⣀⣤⣽⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠃  //
-    // ⢰⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣩⡉⠀⠀  //
-    // ⠹⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣄  //
-    // ⠀⠀⠉⣸⣿⣿⣿⣿⠏⢸⡏⣿⣿⣿⣿⣿⣿⣿⣿⡏  //
-    // ⠀⠀⠀⢿⣿⣿⡿⠏⠀⢸⣇⢻⣿⣿⣿⣿⠉⠉⠁⠀  //
-    // ⠀⠀⠀⠀⠈⠁⠀⠀⠀⠸⣿⡀⠙⠿⠿⠋⠀⠀⠀⠀  //
-    // ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢹⣿⡀⠀⠀⠀⠀⠀⠀⠀  //
+/*
+                            ⠀⠀⠀⠀⠀⠀⢀⣤⣿⣶⣄⠀⠀⠀⣀⡀⠀⠀⠀⠀ 
+                            ⠀⠀⣠⣤⣄⡀⣼⣿⣿⣿⣿⠀⣠⣾⣿⣿⡆⠀⠀⠀  
+                            ⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣶⣿⣿⣿⣿⣧⣄⡀⠀  
+                            ⠀⠀⠻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡄  
+                            ⠀⠀⣀⣤⣽⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠃  
+                            ⢰⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣩⡉⠀⠀  
+                            ⠹⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣄  
+                            ⠀⠀⠉⣸⣿⣿⣿⣿⠏⢸⡏⣿⣿⣿⣿⣿⣿⣿⣿⡏  
+                            ⠀⠀⠀⢿⣿⣿⡿⠏⠀⢸⣇⢻⣿⣿⣿⣿⠉⠉⠁⠀  
+                            ⠀⠀⠀⠀⠈⠁⠀⠀⠀⠸⣿⡀⠙⠿⠿⠋⠀⠀⠀⠀  
+                            ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢹⣿⡀⠀⠀⠀⠀⠀⠀⠀  
 
+                    
+                █   █▀█ ▀█▀ █▀█ █▄█   █▀█ █▀█ █▀█ ▀█▀ █▀█ █▀▀ █▀█ █
+                █▄▄ █▄█  █  █▀▄  █    █▀▀ █▀▄ █▄█  █  █▄█ █▄▄ █▄█ █▄▄
+
+*/
+
+contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
     uint256 public constant INITIAL_SUPPLY =
         1_000_000_000_000_000_000_000_000_000;
     uint256 public constant MIN_BUY = 0.00001 ether;
 
-    uint256 private constant ONE_ETHER = 1e18; // For precision in calculations
+    uint256 private constant ONE_ETHER = 1e18;
 
-    // Fee Structure: 20% buy & sell tax
     uint256 private constant TAX_NUMERATOR = 20;
     uint256 private constant TAX_DENOMINATOR = 100;
 
     address public constant PROTOCOL_POOL_ADDRESS =
         0xebf3334CEE2fb0acDeeAD2E13A0Af302A2e2FF3c;
 
-    // State variables
-    uint256 public ethRaised; // Total ETH in Liquidity
+    uint256 public ethRaised;
     uint256 public constant_k; // The K in the constant product formula (v_tokens * v_eth)
 
-    // Virtual reserves
     uint256 public virtualTokenReserve = 17525652865772000000000000; // 17,525,652.865772
     uint256 public virtualEthReserve = 1271907066082000000; // 1.271907066082 ETH
 
-    // Accumulated Taxes/Fees
     uint256 public accumulatedPoolFee;
 
-    // Flag to permanently disable trading after liquidity is pulled
     bool public liquidityPulled;
 
     // Events
@@ -74,7 +75,6 @@ contract LotryTicket is ERC20, Ownable, ReentrancyGuard {
         return (effectiveEthReserve * ONE_ETHER) / effectiveTokenReserve;
     }
 
-    // Calculate how many tokens will be received for a given NET ETH amount
     function calculateBuyReturn(
         uint256 netEthAmount
     ) public view returns (uint256) {
@@ -84,7 +84,6 @@ contract LotryTicket is ERC20, Ownable, ReentrancyGuard {
             (constant_k / (virtualEthReserve + ethRaised + netEthAmount));
     }
 
-    // Calculate how much ETH will be returned for a given token amount
     function calculateSellReturn(
         uint256 tokenAmount
     ) public view returns (uint256) {
@@ -100,7 +99,6 @@ contract LotryTicket is ERC20, Ownable, ReentrancyGuard {
                 (virtualTokenReserve + tokensInContract + tokenAmount));
     }
 
-    // Buy tokens with ETH
     function buy() public payable nonReentrant {
         require(!liquidityPulled, "Trading disabled");
         require(msg.value >= MIN_BUY, "Below minimum buy amount");
@@ -115,7 +113,6 @@ contract LotryTicket is ERC20, Ownable, ReentrancyGuard {
 
         uint256 tokensToTransfer = calculateBuyReturn(netEthForCurve);
         require(tokensToTransfer > 0, "Would receive zero tokens for net ETH");
-        // Ensure the contract has enough real tokens left to honour the buy.
         require(
             tokensToTransfer <= balanceOf(address(this)),
             "Insufficient token reserves"
@@ -130,7 +127,6 @@ contract LotryTicket is ERC20, Ownable, ReentrancyGuard {
         emit TradeEvent(address(this), currentPrice);
     }
 
-    // Sell tokens to get ETH back
     function sell(uint256 tokenAmount) public nonReentrant {
         require(!liquidityPulled, "Trading disabled");
         require(tokenAmount > 0, "Must sell more than 0 tokens");
