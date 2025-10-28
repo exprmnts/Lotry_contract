@@ -2,7 +2,7 @@
 pragma solidity ^0.8.20;
 
 import {Script, console2} from "forge-std/Script.sol";
-import {RandomWalletPicker} from "../contracts/RandomWalletPicker.sol";
+import {RandomWalletPicker} from "../../contracts/RandomWalletPicker.sol";
 
 contract PickRandomWallet is Script {
     address payable[] internal walletAddresses;
@@ -20,8 +20,32 @@ contract PickRandomWallet is Script {
         walletAddresses[0] = payable(
             0x1111111111111111111111111111111111111111
         );
+        walletAddresses[1] = payable(
+            0x2222222222222222222222222222222222222222
+        );
+        walletAddresses[2] = payable(
+            0x3333333333333333333333333333333333333333
+        );
+        walletAddresses[3] = payable(
+            0x4444444444444444444444444444444444444444
+        );
+        walletAddresses[4] = payable(
+            0x5555555555555555555555555555555555555555
+        );
         walletAddresses[5] = payable(
             0x6666666666666666666666666666666666666666
+        );
+        walletAddresses[6] = payable(
+            0x7777777777777777777777777777777777777777
+        );
+        walletAddresses[7] = payable(
+            0x8888888888888888888888888888888888888888
+        );
+        walletAddresses[8] = payable(
+            0x9999999999999999999999999999999999999999
+        );
+        walletAddresses[9] = payable(
+            0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa
         );
 
         stakes = new uint256[](10);
