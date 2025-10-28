@@ -202,6 +202,12 @@ Make sure you have the correct environment loaded with `direnv` before deploying
 **Deploy Launchpad Contract**
 
 ```bash
+forge script script/LaunchpadDeploy.s.sol:LaunchpadDeploy --rpc-url $RPC_URL --account <Wallet Name>  --broadcast -vvv
+```
+
+or you can use
+
+```bash
 forge script script/LaunchpadDeploy.s.sol:LaunchpadDeploy --rpc-url $RPC_URL -vvv --keystore ~/.foundry/keystores/<Wallet Name>  --broadcast
 ```
 
@@ -264,6 +270,12 @@ forge coverage
 ### Testing VRF
 
 Since the test requires onchain interaction and wallet activity we have to put this in /script
+
+```bash
+forge script script/PickRandomWallet.s.sol:PickRandomWallet --rpc-url $RPC_URL --account baseSepoliaWallet --broadcast -vvv
+```
+
+or you can use
 
 ```bash
 forge script script/PickRandomWallet.s.sol:PickRandomWallet --rpc-url $RPC_URL --keystore ~/.foundry/keystores/baseSepoliaWallet --broadcast -vvv
