@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract LotryTicket is ERC20, Ownable, ReentrancyGuard {
-    // ⠀⠀⠀⠀⠀⠀⢀⣤⣿⣶⣄⠀⠀⠀⣀⡀⠀⠀⠀⠀  //
+    // ⠀⠀⠀⠀ ⠀⠀⢀⣤⣿⣶⣄⠀⠀⠀⣀⡀⠀⠀⠀⠀  //
     // ⠀⠀⣠⣤⣄⡀⣼⣿⣿⣿⣿⠀⣠⣾⣿⣿⡆⠀⠀⠀  //
     // ⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣶⣿⣿⣿⣿⣧⣄⡀⠀  //
     // ⠀⠀⠻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡄  //
@@ -36,7 +36,7 @@ contract LotryTicket is ERC20, Ownable, ReentrancyGuard {
 
     // Virtual reserves
     uint256 public virtualTokenReserve = 17525652865772000000000000; // 17,525,652.865772
-    uint256 public virtualEthReserve = 1271907066082000000; // 1.271907066082 ETH
+    uint256 public virtualEthReserve = 203505130573000000; // 0.203505130573 ETH
 
     // Accumulated Taxes/Fees
     uint256 public accumulatedPoolFee;
