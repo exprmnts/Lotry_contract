@@ -202,7 +202,7 @@ Make sure you have the correct environment loaded with `direnv` before deploying
 **Deploy Launchpad Contract**
 
 ```bash
-forge script script/LaunchpadDeploy.s.sol:LaunchpadDeploy --rpc-url $RPC_URL -vvv --keystore ~/.foundry/keystores/<Wallet Name>  --broadcast
+forge script script/LaunchpadDeploy.s.sol:LaunchpadDeploy --rpc-url $RPC_URL --sender <wallet address> --keystore ~/.foundry/keystores/<Wallet Name>  --broadcast -vvvvv
 ```
 
 **Deploy Random Wallet Picker (VRF)**
@@ -218,7 +218,7 @@ Example for `base_sepolia`:
 export TARGET_ENV=base_sepolia
 
 # 2. Deploy the Launchpad
-forge script script/LaunchpadDeploy.s.sol:LaunchpadDeploy --rpc-url $RPC_URL -vvv --keystore ~/.foundry/keystores/baseSepoliaWallet  --broadcast
+forge script script/LaunchpadDeploy.s.sol:LaunchpadDeploy --rpc-url $RPC_URL -vvv --keystore ~/.foundry/keystores/baseSepoliaWallet --sender 0x3513C0F1420b7D4793158Ae5eb5985BBf34d5911  --broadcast
 ```
 
 ## Chainlink VRF Integration
