@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
-import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
-
 /*
                             ⠀⠀⠀⠀⠀ ⠀⢀⣤⣿⣶⣄⠀⠀⠀⣀⡀⠀⠀⠀⠀ 
                             ⠀⠀⣠⣤⣄⡀⣼⣿⣿⣿⣿⠀⣠⣾⣿⣿⡆⠀⠀⠀  
@@ -20,7 +17,6 @@ import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/V
                     
                 █   █▀█ ▀█▀ █▀█ █▄█   █▀█ █▀█ █▀█ ▀█▀ █▀█ █▀▀ █▀█ █
                 █▄▄ █▄█  █  █▀▄  █    █▀▀ █▀▄ █▄█  █  █▄█ █▄▄ █▄█ █▄▄
-
 */
 
 /**
@@ -29,6 +25,19 @@ import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/V
  * @notice This contract is for picking a random wallet based on stakes.
  * @dev This contract uses Chainlink VRF to generate a random number and pick a random ticket/token.
  */
+ 
+import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
+import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
+
+error RWP__RequestInProgress();
+error RWP__NoParticipantsProvided();
+error RWP__ParticipantsAndStakesMismatch();
+error RWP__StakeMustBePositive();
+error RWP__TotalStakesMustBePositive();
+error RWP__InvalidRequestId();
+error RWP__NoRandomWordsReturned();
+error RWP__NoParticipantsForRequest();
+
 contract RandomWalletPicker is VRFConsumerBaseV2Plus {
     // Chainlink VRF Configuration
     bytes32 immutable I_KEY_HASH;
@@ -77,9 +86,15 @@ contract RandomWalletPicker is VRFConsumerBaseV2Plus {
         onlyOwner
         returns (uint256 requestId)
     {
-        require(!sRequestInProgress, "A request is already in progress");
-        require(_newParticipants.length > 0, "No participants provided");
-        require(_newParticipants.length == _newStakes.length, "Participants and stakes must have the same length");
+        if (sRequestInProgress) {
+            revert RWP__RequestInProgress();
+        }
+        if (_newParticipants.length <= 0) {
+            revert RWP__NoParticipantsProvided();
+        }
+        if (_newParticipants.length != _newStakes.length) {
+            revert RWP__ParticipantsAndStakesMismatch();
+        }
 
         sRequestInProgress = true;
 
@@ -88,12 +103,16 @@ contract RandomWalletPicker is VRFConsumerBaseV2Plus {
 
         uint256 totalStakes = 0;
         for (uint256 i = 0; i < _newParticipants.length; i++) {
-            require(_newStakes[i] > 0, "Stake must be positive");
+            if (_newStakes[i] <= 0) {
+                revert RWP__StakeMustBePositive();
+            }
             sParticipants.push(_newParticipants[i]);
             sStakes.push(_newStakes[i]);
             totalStakes += _newStakes[i];
         }
-        require(totalStakes > 0, "Total stakes must be positive");
+        if (totalStakes <= 0) {
+            revert RWP__TotalStakesMustBePositive();
+        }
         sTotalStakes = totalStakes;
 
         VRFV2PlusClient.RandomWordsRequest memory req = VRFV2PlusClient.RandomWordsRequest({
@@ -118,9 +137,15 @@ contract RandomWalletPicker is VRFConsumerBaseV2Plus {
      * @param randomWords The array of random numbers provided by the oracle.
      */
     function fulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) internal override {
-        require(requestId == sLastRequestId, "Invalid request ID");
-        require(randomWords.length > 0, "No random words returned");
-        require(sParticipants.length > 0, "No participants for this request");
+        if (requestId != sLastRequestId) {
+            revert RWP__InvalidRequestId();
+        }
+        if (randomWords.length <= 0) {
+            revert RWP__NoRandomWordsReturned();
+        }
+        if (sParticipants.length <= 0) {
+            revert RWP__NoParticipantsForRequest();
+        }
 
         sRandomWord = randomWords[0];
         uint256 randomNumber = sRandomWord % sTotalStakes;

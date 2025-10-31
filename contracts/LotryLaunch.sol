@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {LotryTicket} from "./LotryTicket.sol";
-
 /*
                             ⠀⠀⠀⠀⠀ ⠀⢀⣤⣿⣶⣄⠀⠀⠀⣀⡀⠀⠀⠀⠀ 
                             ⠀⠀⣠⣤⣄⡀⣼⣿⣿⣿⣿⠀⣠⣾⣿⣿⡆⠀⠀⠀  
@@ -28,6 +25,11 @@ import {LotryTicket} from "./LotryTicket.sol";
  * @author Arjun C, Aarone George
  * @notice This contract is for deploying a Lotry Token.
  */
+
+
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {LotryTicket} from "./LotryTicket.sol";
+
 contract LotryLaunch is Ownable {
     uint256 public tokenCount;
 
