@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-
 /*
                             ⠀⠀⠀⠀⠀ ⠀⢀⣤⣿⣶⣄⠀⠀⠀⣀⡀⠀⠀⠀⠀ 
                             ⠀⠀⣠⣤⣄⡀⣼⣿⣿⣿⣿⠀⣠⣾⣿⣿⡆⠀⠀⠀  
@@ -21,7 +17,6 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
                     
                 █   █▀█ ▀█▀ █▀█ █▄█   █▀█ █▀█ █▀█ ▀█▀ █▀█ █▀▀ █▀█ █
                 █▄▄ █▄█  █  █▀▄  █    █▀▀ █▀▄ █▄█  █  █▄█ █▄▄ █▄█ █▄▄
-
 */
 
 /**
@@ -30,6 +25,27 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
  * @notice This contract defines the Lotry Ticket ERC20 token, which incorporates a bonding curve for dynamic pricing, a tax mechanism on trades, and features for reward distribution and liquidity management.
  * @dev The token's price is governed by a constant product bonding curve. It includes functions for buying and selling tokens, applying a percentage tax on transactions, and managing the distribution of accumulated funds for rewards and protocol operations.
  */
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
+error Ticket__InvalidNetEthAmount();
+error Ticket__InvalidTokenAmount();
+error Ticket__ExceedsCirculatingSupply();
+error Ticket__TradingDisabled();
+error Ticket__BelowMinimumBuy();
+error Ticket__ZeroTokenReturn();
+error Ticket__InsufficientTokenReserves();
+error Ticket__InsufficientTokenBalance();
+error Ticket__ZeroEthReturn();
+error Ticket__InsufficientEthReserves();
+error Ticket__FeeExceedsReturn();
+error Ticket__NullWinnerAddress();
+error Ticket__LiquidityAlreadyPulled();
+error Ticket__MismatchedArrayLengths();
+error Ticket__ExceedsContractBalance();
+error Ticket__EthTransferFailed();
+
 contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
     uint256 private constant MIN_BUY = 0.00001 ether;
     uint256 private constant ONE_ETHER = 1e18;
@@ -67,22 +83,24 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
     }
 
     function calculateBuyReturn(uint256 netEthAmount) public view returns (uint256) {
-        require(netEthAmount > 0, "Net ETH for curve is zero");
+        if (netEthAmount <= 0) revert Ticket__InvalidNetEthAmount();
         return (balanceOf(address(this)) + VIRTUAL_TOKEN_RESERVE)
             - (I_CONSTANT_K / (VIRTUAL_ETH_RESERVE + ethRaised + netEthAmount));
     }
 
     function calculateSellReturn(uint256 tokenAmount) public view returns (uint256) {
-        require(tokenAmount > 0, "Token amount must be > 0");
+        if (tokenAmount <= 0) revert Ticket__InvalidTokenAmount();
         uint256 tokensInContract = balanceOf(address(this));
-        require(tokenAmount <= INITIAL_SUPPLY - tokensInContract, "Cannot sell more than circulating");
+        if (tokenAmount > INITIAL_SUPPLY - tokensInContract) {
+            revert Ticket__ExceedsCirculatingSupply();
+        }
         return (ethRaised + VIRTUAL_ETH_RESERVE)
             - (I_CONSTANT_K / (VIRTUAL_TOKEN_RESERVE + tokensInContract + tokenAmount));
     }
 
     function buy() public payable nonReentrant {
-        require(!liquidityPulled, "Trading disabled");
-        require(msg.value >= MIN_BUY, "Below minimum buy amount");
+        if (liquidityPulled) revert Ticket__TradingDisabled();
+        if (msg.value < MIN_BUY) revert Ticket__BelowMinimumBuy();
 
         uint256 grossEthAmount = msg.value;
 
@@ -93,8 +111,10 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
         uint256 netEthForCurve = grossEthAmount - poolFee;
 
         uint256 tokensToTransfer = calculateBuyReturn(netEthForCurve);
-        require(tokensToTransfer > 0, "Would receive zero tokens for net ETH");
-        require(tokensToTransfer <= balanceOf(address(this)), "Insufficient token reserves");
+        if (tokensToTransfer <= 0) revert Ticket__ZeroTokenReturn();
+        if (tokensToTransfer > balanceOf(address(this))) {
+            revert Ticket__InsufficientTokenReserves();
+        }
 
         // Update state
         ethRaised += netEthForCurve;
@@ -106,19 +126,23 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
     }
 
     function sell(uint256 tokenAmount) public nonReentrant {
-        require(!liquidityPulled, "Trading disabled");
-        require(tokenAmount > 0, "Must sell more than 0 tokens");
-        require(balanceOf(msg.sender) >= tokenAmount, "Not enough tokens to sell");
+        if (liquidityPulled) revert Ticket__TradingDisabled();
+        if (tokenAmount <= 0) revert Ticket__InvalidTokenAmount();
+        if (balanceOf(msg.sender) < tokenAmount) {
+            revert Ticket__InsufficientTokenBalance();
+        }
 
         uint256 ethToReturnGross = calculateSellReturn(tokenAmount);
-        require(ethToReturnGross > 0, "Would receive zero ETH");
-        require(ethToReturnGross <= address(this).balance, "Insufficient ETH in contract for sale");
+        if (ethToReturnGross <= 0) revert Ticket__ZeroEthReturn();
+        if (ethToReturnGross > address(this).balance) {
+            revert Ticket__InsufficientEthReserves();
+        }
 
         uint256 sellFee = (ethToReturnGross * TAX_NUMERATOR) / TAX_DENOMINATOR; // 20%
 
         accumulatedPoolFee += sellFee;
 
-        require(ethToReturnGross > sellFee, "Fee exceeds return amount");
+        if (ethToReturnGross <= sellFee) revert Ticket__FeeExceedsReturn();
         uint256 ethToReturnNet = ethToReturnGross - sellFee;
 
         // Update state
@@ -133,7 +157,7 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
     }
 
     function distributeRewards(address winner) public onlyOwner nonReentrant {
-        require(winner != address(0), "Null winner address");
+        if (winner == address(0)) revert Ticket__NullWinnerAddress();
 
         uint256 feesToDistribute = accumulatedPoolFee;
         accumulatedPoolFee = 0;
@@ -157,22 +181,26 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
         onlyOwner
         nonReentrant
     {
-        require(!liquidityPulled, "Liquidity already pulled");
+        if (liquidityPulled) revert Ticket__LiquidityAlreadyPulled();
         liquidityPulled = true;
 
-        require(wallets.length == amounts.length, "Mismatched array lengths");
+        if (wallets.length != amounts.length) {
+            revert Ticket__MismatchedArrayLengths();
+        }
 
         uint256 totalEthToDistribute = 0;
         for (uint256 i = 0; i < wallets.length; i++) {
             totalEthToDistribute += amounts[i];
         }
 
-        require(totalEthToDistribute <= address(this).balance, "Total amount exceeds contract balance");
+        if (totalEthToDistribute > address(this).balance) {
+            revert Ticket__ExceedsContractBalance();
+        }
 
         for (uint256 i = 0; i < wallets.length; i++) {
             if (amounts[i] > 0) {
                 (bool sent,) = wallets[i].call{value: amounts[i]}("");
-                require(sent, "Failed to send ETH");
+                if (!sent) revert Ticket__EthTransferFailed();
             }
         }
 
