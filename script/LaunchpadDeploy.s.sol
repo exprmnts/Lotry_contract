@@ -12,10 +12,6 @@ contract LaunchpadDeploy is Script {
         LotryLaunch launchpad = new LotryLaunch(msg.sender);
         console2.log("TokenLaunchpad deployed at", address(launchpad));
 
-        // Launch a token through the launchpad
-        address tokenAddress = launchpad.launchToken("CAT", "CAT");
-        console2.log("Token deployed at", tokenAddress);
-
         vm.stopBroadcast();
     }
 }
