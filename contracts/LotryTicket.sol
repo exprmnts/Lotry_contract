@@ -52,7 +52,7 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
     uint256 private constant TAX_NUMERATOR = 20;
     uint256 private constant TAX_DENOMINATOR = 100;
     uint256 private constant VIRTUAL_TOKEN_RESERVE = 17525652865772000000000000; // 17,525,652.865772
-    uint256 private constant VIRTUAL_ETH_RESERVE = 1271907066082000000; // 1.271907066082 ETH
+    uint256 private constant VIRTUAL_ETH_RESERVE = 203505130573000000; // 0.203505130573 ETH
     uint256 private constant INITIAL_SUPPLY = 1_000_000_000_000_000_000_000_000_000;
     address private constant PROTOCOL_WALLET_ADDRESS = 0xebf3334CEE2fb0acDeeAD2E13A0Af302A2e2FF3c;
 
