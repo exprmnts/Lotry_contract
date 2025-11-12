@@ -15,18 +15,16 @@ pragma solidity ^0.8.20;
                             ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢹⣿⡀⠀⠀⠀⠀⠀⠀⠀  
 
                     
-                █   █▀█ ▀█▀ █▀█ █▄█   █▀█ █▀█ █▀█ ▀█▀ █▀█ █▀▀ █▀█ █
-                █▄▄ █▄█  █  █▀▄  █    █▀▀ █▀▄ █▄█  █  █▄█ █▄▄ █▄█ █▄▄
+                █   █▀█ ▀█▀ █▀█ █▄█   █▀█ █▀█ █▀█ ▀█▀ █▀█ █▀▀ █▀█ █
+                █▄▄ █▄█  █  █▀▄  █    █▀▀ █▀▄ █▄█  █  █▄█ █▄▄ █▄█ █▄▄
 
 */
 
 /**
  * @title Lotry Token Launchpad
- * @author Arjun C, Aarone George
+ * @author @lotrydotfun
  * @notice This contract is for deploying a Lotry Token.
  */
-
-
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {LotryTicket} from "./LotryTicket.sol";
 

@@ -11,9 +11,15 @@ RED := \033[0;31m
 NC := \033[0m # No Color
 
 # Default values
-TARGET_ENV ?= base_sepolia
-WALLET_NAME ?= baseSepoliaWallet
+TARGET_ENV ?= $(shell echo $$TARGET_ENV)
 RPC_URL ?= $(shell echo $$RPC_URL)
+
+# Set WALLET_NAME based on TARGET_ENV
+ifeq ($(TARGET_ENV),base)
+WALLET_NAME ?= baseWallet
+else
+WALLET_NAME ?= baseSepoliaWallet
+endif
 VERBOSITY ?= -vvvvv
 
 ##@ General
@@ -142,7 +148,7 @@ test-vrf: check-env ## Test VRF random wallet picker (requires DEPLOYED_VRF_CA e
 	@echo "$(BLUE)🎲 Testing VRF random wallet picker...$(NC)"
 	@echo "$(YELLOW)   Contract: $(DEPLOYED_VRF_CA)$(NC)"
 	@echo "$(YELLOW)   Network: $(TARGET_ENV)$(NC)"
-	forge script script/PickRandomWallet.s.sol:PickRandomWallet \
+	forge script script/testScripts/PickRandomWallet.s.sol:PickRandomWallet \
 		--rpc-url $(RPC_URL) \
 		--account $(WALLET_NAME) \
 		--broadcast $(VERBOSITY)
@@ -159,7 +165,7 @@ check-winner: check-env ## Check the picked wallet from VRF contract (usage: mak
 	@echo "$(BLUE)🔍 Checking picked wallet...$(NC)"
 	@echo "$(YELLOW)   Contract: $(DEPLOYED_VRF_CA)$(NC)"
 	cast call $(DEPLOYED_VRF_CA) "getPickedWallet()" --rpc-url $(RPC_URL)
-	@echo "$(GREEN)✅ Winner check complete!$(NC)"
+	@echo "$(GREEN)✅ Winner Found!$(NC)"
 
 ##@ Quick Commands
 
