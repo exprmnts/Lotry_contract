@@ -15,13 +15,13 @@ pragma solidity ^0.8.20;
                             ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢹⣿⡀⠀⠀⠀⠀⠀⠀⠀  
 
                     
-                █   █▀█ ▀█▀ █▀█ █▄█   █▀█ █▀█ █▀█ ▀█▀ █▀█ █▀▀ █▀█ █
-                █▄▄ █▄█  █  █▀▄  █    █▀▀ █▀▄ █▄█  █  █▄█ █▄▄ █▄█ █▄▄
+                █   █▀█ ▀█▀ █▀█ █▄█  █▀█ █▀█ █▀█ ▀█▀ █▀█ █▀▀ █▀█ █
+                █▄▄ █▄█  █  █▀▄  █   █▀▀ █▀▄ █▄█  █  █▄█ █▄▄ █▄█ █▄▄
 */
 
 /**
  * @title Lotry Ticket ERC20 Token
- * @author Arjun C, Aarone George
+ * @author @lotrydotfun
  * @notice This contract defines the Lotry Ticket ERC20 token, which incorporates a bonding curve for dynamic pricing, a tax mechanism on trades, and features for reward distribution and liquidity management.
  * @dev The token's price is governed by a constant product bonding curve. It includes functions for buying and selling tokens, applying a percentage tax on transactions, and managing the distribution of accumulated funds for rewards and protocol operations.
  */

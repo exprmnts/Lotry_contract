@@ -15,17 +15,16 @@ pragma solidity ^0.8.20;
                             ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢹⣿⡀⠀⠀⠀⠀⠀⠀⠀  
 
                     
-                █   █▀█ ▀█▀ █▀█ █▄█   █▀█ █▀█ █▀█ ▀█▀ █▀█ █▀▀ █▀█ █
-                █▄▄ █▄█  █  █▀▄  █    █▀▀ █▀▄ █▄█  █  █▄█ █▄▄ █▄█ █▄▄
+                █   █▀█ ▀█▀ █▀█ █▄█  █▀█ █▀█ █▀█ ▀█▀ █▀█ █▀▀ █▀█ █
+                █▄▄ █▄█  █  █▀▄  █   █▀▀ █▀▄ █▄█  █  █▄█ █▄▄ █▄█ █▄▄
 */
 
 /**
  * @title Random Wallet Picker Contract
- * @author Arjun C, Aarone George
+ * @author @lotrydotfun
  * @notice This contract is for picking a random wallet based on stakes.
  * @dev This contract uses Chainlink VRF to generate a random number and pick a random ticket/token.
  */
- 
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
