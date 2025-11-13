@@ -1,0 +1,11 @@
+{
+  "base": {
+    "LotryLaunch": {
+      "address": "0x4404D6b60365bE8280758144aCdA71C08c5c301b",
+      "startBlock": 38077257
+    },
+    "LotryTicket": {
+      "address": "0x0e4a1cc8c431c821f8B0384B4D27122770D4A3e0"
+    }
+  }
+}
