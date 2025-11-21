@@ -27,6 +27,7 @@ pragma solidity ^0.8.20;
  */
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 error Ticket__InvalidNetEthAmount();
@@ -45,6 +46,9 @@ error Ticket__LiquidityAlreadyPulled();
 error Ticket__MismatchedArrayLengths();
 error Ticket__ExceedsContractBalance();
 error Ticket__EthTransferFailed();
+error Ticket__InvalidRewardToken();
+error Ticket__TokenTransferFailed();
+error Ticket__NoRewardTokenSet();
 
 contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
     uint256 private constant MIN_BUY = 0.00001 ether;
@@ -61,6 +65,10 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
     uint256 public ethRaised;
     uint256 public accumulatedPoolFee;
     bool public liquidityPulled;
+
+    // Reward Token
+    address public rewardTokenAddress;
+    uint256 public accumulatedRewardTokens;
 
     event TradeEvent(address indexed tokenAddress, uint256 ethPrice);
     event RewardsDistributed(address indexed winner, uint256 winnerPrizeAmount, uint256 protocolAmount);
@@ -175,6 +183,16 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
             if (!sentProtocol) revert Ticket__EthTransferFailed();
         }
 
+        // ERC20 Token Transfer (send all to winner)
+        if (rewardTokenAddress != address(0) && accumulatedRewardTokens > 0) {
+            uint256 tokenAmount = accumulatedRewardTokens;
+            accumulatedRewardTokens = 0;
+
+            IERC20 rewardToken = IERC20(rewardTokenAddress);
+            bool tokenSent = rewardToken.transfer(winner, tokenAmount);
+            if (!tokenSent) revert Ticket__TokenTransferFailed();
+        }
+
         emit RewardsDistributed(winner, winnerPrizeAmount, protocolAmount);
     }
 
@@ -207,5 +225,35 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
         }
 
         emit LiquidityPulled(totalEthToDistribute);
+    }
+
+    // Function to set the reward token address
+    function setRewardToken(address tokenAddress) external onlyOwner {
+        if (tokenAddress == address(0)) revert Ticket__InvalidRewardToken();
+        rewardTokenAddress = tokenAddress;
+    }
+
+    // Function to deposit reward tokens to the pot
+    function depositRewardTokens(uint256 amount) external nonReentrant {
+        if (rewardTokenAddress == address(0)) revert Ticket__NoRewardTokenSet();
+        if (amount == 0) revert Ticket__InvalidTokenAmount();
+
+        IERC20 rewardToken = IERC20(rewardTokenAddress);
+
+        bool success = rewardToken.transferFrom(msg.sender, address(this), amount);
+        if (!success) revert Ticket__TokenTransferFailed();
+
+        accumulatedRewardTokens += amount;
+    }
+
+    // Function to get the balance of reward tokens in the pot
+    function getRewardTokenBalance() external view returns (uint256) {
+        if (rewardTokenAddress == address(0)) return 0;
+        return accumulatedRewardTokens;
+    }
+
+    // Add this receive function to accept ETH directly
+    receive() external payable {
+        accumulatedPoolFee += msg.value;
     }
 }
