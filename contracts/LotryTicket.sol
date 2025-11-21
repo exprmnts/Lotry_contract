@@ -146,10 +146,12 @@ contract LotryTicket is ERC20, Ownable, ReentrancyGuard {
 
         // Transfers
         if (winnerPrizeAmount > 0) {
-            payable(winner).transfer(winnerPrizeAmount);
+            (bool sentWinner,) = winner.call{value: winnerPrizeAmount}("");
+            require(sentWinner, "Failed to send ETH to winner");
         }
         if (protocolAmount > 0) {
-            payable(PROTOCOL_POOL_ADDRESS).transfer(protocolAmount);
+            (bool sentProtocol,) = PROTOCOL_POOL_ADDRESS.call{value: protocolAmount}("");
+            require(sentProtocol, "Failed to send ETH to protocol");
         }
 
         emit RewardsDistributed(winner, winnerPrizeAmount, protocolAmount);
