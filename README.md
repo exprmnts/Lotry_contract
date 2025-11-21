@@ -202,7 +202,13 @@ Make sure you have the correct environment loaded with `direnv` before deploying
 **Deploy Launchpad Contract**
 
 ```bash
-forge script script/LaunchpadDeploy.s.sol:LaunchpadDeploy --rpc-url $RPC_URL --sender <wallet address> --keystore ~/.foundry/keystores/<Wallet Name>  --broadcast -vvvvv
+forge script script/LaunchpadDeploy.s.sol:LaunchpadDeploy --rpc-url $RPC_URL --account <Wallet Name>  --broadcast -vvv
+```
+
+or you can use
+
+```bash
+forge script script/LaunchpadDeploy.s.sol:LaunchpadDeploy --rpc-url $RPC_URL -vvv --keystore ~/.foundry/keystores/<Wallet Name>  --broadcast
 ```
 
 **Deploy Random Wallet Picker (VRF)**
@@ -266,6 +272,12 @@ forge coverage
 Since the test requires onchain interaction and wallet activity we have to put this in /script
 
 ```bash
+forge script script/PickRandomWallet.s.sol:PickRandomWallet --rpc-url $RPC_URL --account baseSepoliaWallet --broadcast -vvv
+```
+
+or you can use
+
+```bash
 forge script script/PickRandomWallet.s.sol:PickRandomWallet --rpc-url $RPC_URL --keystore ~/.foundry/keystores/baseSepoliaWallet --broadcast -vvv
 ```
 
@@ -279,6 +291,34 @@ cast call $DEPLOYED_VRF_CA "getPickedWallet()" --rpc-url $RPC_URL
 
 ```bash
 dos2unix .envrc .env.base_sepolia
+```
+
+## ✅ Verify A Contract
+
+### Verifying LotryLaunch Contract
+
+```bash
+export LAUNCH_CONSTRUCTOR=$(cast abi-encode "constructor(address)" "<DEPLOYER_ADDR>")
+
+forge verify-contract \
+    --chain-id <CHAIN_ID> \
+    --constructor-args $LAUNCH_CONSTRUCTOR \
+    <LAUNCHPAD_ADDRESS> \
+    contracts/LotryLaunch.sol:LotryLaunch \
+    --etherscan-api-key <api key>
+```
+
+### Verifying RandomWalletPicker Contract
+
+```bash
+cast abi-encode "constructor(address,uint256,bytes32)" $VRF_COORDINATOR $SUBSCRIPTION_ID $KEY_HASH
+
+forge verify-contract \
+    --chain-id 8453 \
+    --constructor-args 0x000000000000000000000000d5d517abe5cf79b7e95ec98db0f0277788aff6344e491ebbebd59651bd45d92e7e77eac0f9f8ecca098acfbf097eb1d2167b4a3700b81b5a830cb0a4009fbd8904de511e28631e62ce5ad231373d3cdad373ccab \
+    0x3B7b34Ad8819C2Dc6db513b85531C43BaCB5f7B3 \
+    contracts/RandomWalletPicker.sol:RandomWalletPicker \
+    --etherscan-api-key IFK78GXHGQRAD7NQ4FA16P2F26AHIDA2GH
 ```
 
 ## 🔒 Security
