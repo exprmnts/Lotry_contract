@@ -10,6 +10,9 @@ type OwnershipTransferred @entity(immutable: true) {
 type TokenCreated @entity(immutable: true) {
   id: Bytes!
   tokenAddress: Bytes! # address
+  creator: Bytes! # address
+  tokenId: BigInt! # uint256
+  timestamp: BigInt! # uint256
   name: String! # string
   symbol: String! # string
   blockNumber: BigInt!

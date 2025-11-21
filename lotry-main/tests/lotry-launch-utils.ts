@@ -1,5 +1,5 @@
 import { newMockEvent } from "matchstick-as"
-import { ethereum, Address } from "@graphprotocol/graph-ts"
+import { ethereum, Address, BigInt } from "@graphprotocol/graph-ts"
 import {
   OwnershipTransferred,
   TokenCreated
@@ -29,6 +29,9 @@ export function createOwnershipTransferredEvent(
 
 export function createTokenCreatedEvent(
   tokenAddress: Address,
+  creator: Address,
+  tokenId: BigInt,
+  timestamp: BigInt,
   name: string,
   symbol: string
 ): TokenCreated {
@@ -40,6 +43,21 @@ export function createTokenCreatedEvent(
     new ethereum.EventParam(
       "tokenAddress",
       ethereum.Value.fromAddress(tokenAddress)
+    )
+  )
+  tokenCreatedEvent.parameters.push(
+    new ethereum.EventParam("creator", ethereum.Value.fromAddress(creator))
+  )
+  tokenCreatedEvent.parameters.push(
+    new ethereum.EventParam(
+      "tokenId",
+      ethereum.Value.fromUnsignedBigInt(tokenId)
+    )
+  )
+  tokenCreatedEvent.parameters.push(
+    new ethereum.EventParam(
+      "timestamp",
+      ethereum.Value.fromUnsignedBigInt(timestamp)
     )
   )
   tokenCreatedEvent.parameters.push(

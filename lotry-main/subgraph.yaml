@@ -24,7 +24,7 @@ dataSources:
       eventHandlers:
         - event: OwnershipTransferred(indexed address,indexed address)
           handler: handleOwnershipTransferred
-        - event: TokenCreated(indexed address,string,string)
+        - event: TokenCreated(indexed address,indexed address,indexed uint256,uint256,string,string)
           handler: handleTokenCreated
       file: ./src/lotry-launch.ts
 templates:

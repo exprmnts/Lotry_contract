@@ -27,6 +27,9 @@ export function handleTokenCreated(event: TokenCreatedEvent): void {
     event.transaction.hash.concatI32(event.logIndex.toI32())
   )
   entity.tokenAddress = event.params.tokenAddress
+  entity.creator = event.params.creator
+  entity.tokenId = event.params.tokenId
+  entity.timestamp = event.params.timestamp
   entity.name = event.params.name
   entity.symbol = event.params.symbol
 
