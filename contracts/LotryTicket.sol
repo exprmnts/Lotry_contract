@@ -44,36 +44,17 @@ contract LotryTicket is ERC20, Ownable, ReentrancyGuard {
     // Flag to permanently disable trading after liquidity is pulled
     bool public liquidityPulled;
 
-    // whitelist
-    mapping(address => bool) public whitelist;
-    bool public whitelistEnabled = true;
-
-    // whitelist modifier
-    modifier onlyWhitelisted() {
-        if (whitelistEnabled) {
-            require(whitelist[msg.sender], "Not whitelisted");
-        }
-        _;
-    }
-
     // Events
     event TradeEvent(address indexed tokenAddress, uint256 ethPrice);
     event RewardsDistributed(address indexed winner, uint256 winnerPrizeAmount, uint256 protocolAmount);
     event LiquidityPulled(uint256 totalAmountDistributed);
 
-    constructor(string memory name, string memory symbol, address initialOwner, address[] memory initialWhitelist)
+    constructor(string memory name, string memory symbol, address initialOwner)
         ERC20(name, symbol)
         Ownable(initialOwner)
     {
         _mint(address(this), INITIAL_SUPPLY);
         constant_k = (balanceOf(address(this)) + virtualTokenReserve) * virtualEthReserve;
-
-        whitelist[address(this)] = true;
-
-        // Add initial whitelist addresses
-        for (uint256 i = 0; i < initialWhitelist.length; i++) {
-            whitelist[initialWhitelist[i]] = true;
-        }
     }
 
     function calculateCurrentPrice() public view returns (uint256) {
@@ -100,7 +81,7 @@ contract LotryTicket is ERC20, Ownable, ReentrancyGuard {
     }
 
     // Buy tokens with ETH
-    function buy() public payable nonReentrant onlyWhitelisted {
+    function buy() public payable nonReentrant {
         require(!liquidityPulled, "Trading disabled");
         require(msg.value >= MIN_BUY, "Below minimum buy amount");
 
@@ -127,7 +108,7 @@ contract LotryTicket is ERC20, Ownable, ReentrancyGuard {
     }
 
     // Sell tokens to get ETH back
-    function sell(uint256 tokenAmount) public nonReentrant onlyWhitelisted {
+    function sell(uint256 tokenAmount) public nonReentrant {
         require(!liquidityPulled, "Trading disabled");
         require(tokenAmount > 0, "Must sell more than 0 tokens");
         require(balanceOf(msg.sender) >= tokenAmount, "Not enough tokens to sell");
@@ -165,10 +146,12 @@ contract LotryTicket is ERC20, Ownable, ReentrancyGuard {
 
         // Transfers
         if (winnerPrizeAmount > 0) {
-            payable(winner).transfer(winnerPrizeAmount);
+            (bool sentWinner,) = winner.call{value: winnerPrizeAmount}("");
+            require(sentWinner, "Failed to send ETH to winner");
         }
         if (protocolAmount > 0) {
-            payable(PROTOCOL_POOL_ADDRESS).transfer(protocolAmount);
+            (bool sentProtocol,) = PROTOCOL_POOL_ADDRESS.call{value: protocolAmount}("");
+            require(sentProtocol, "Failed to send ETH to protocol");
         }
 
         emit RewardsDistributed(winner, winnerPrizeAmount, protocolAmount);
