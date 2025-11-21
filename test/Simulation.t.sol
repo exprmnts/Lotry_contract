@@ -37,7 +37,7 @@ contract PoolSimulationTest is Test {
 
     function createNewPool(string memory name, string memory symbol) internal {
         vm.prank(owner);
-        address poolAddress = launchpad.launchToken(name, symbol, buyers);
+        address poolAddress = launchpad.launchToken(name, symbol);
         lotry = LotryTicket(poolAddress);
     }
 
