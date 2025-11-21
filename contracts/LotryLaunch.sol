@@ -7,7 +7,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./LotryTicket.sol";
 
 contract LotryLaunch is Ownable {
-
     // ⠀⠀⠀⠀⠀⠀ ⢀⣤⣿⣶⣄⠀⠀⠀⣀⡀⠀⠀⠀⠀  //
     // ⠀⠀⣠⣤⣄⡀⣼⣿⣿⣿⣿⠀⣠⣾⣿⣿⡆⠀⠀⠀  //
     // ⠀⢸⣿⣿⣿⣿⣿⣿⣿⣿⣿⣶⣿⣿⣿⣿⣧⣄⡀⠀  //
@@ -34,11 +33,8 @@ contract LotryLaunch is Ownable {
     constructor(address initialOwner) Ownable(initialOwner) {}
 
     // Function to create a new ERC20 token
-    function launchToken(string calldata name, string calldata symbol, address[] calldata initialWhitelist)
-        public
-        returns (address)
-    {
-        LotryTicket newToken = new LotryTicket(name, symbol, msg.sender, initialWhitelist);
+    function launchToken(string calldata name, string calldata symbol) public returns (address) {
+        LotryTicket newToken = new LotryTicket(name, symbol, msg.sender);
 
         address tokenAddress = address(newToken);
 
