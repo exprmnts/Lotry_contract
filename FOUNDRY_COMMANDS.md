@@ -16,7 +16,7 @@ cast call <LOTRY_TICKET_CONTRACT>  "rewardTokenAddress()(address)" --rpc-url $RP
 
 - To deposit reward token (10 token of 18 decimal)
 
-  - approve first : cast send <REWARD_TOKEN_CONTRACT> "approve(address,uint256)" <LOTRY_TICKET_CONTRACT>  10000000000000000000   --rpc-ur $RPC_URL --account <CAST_WALLET>
+  - approve first : cast send <REWARD_TOKEN_CONTRACT> "approve(address,uint256)" <LOTRY_TICKET_CONTRACT>  10000000000000000000   --rpc-url $RPC_URL --account <CAST_WALLET>
  
   - send token: cast send <LOTRY_TICKET_CONTRACT>  "depositRewardTokens(uint256)" 10000000000000000000 --rpc-url $RPC_URL --account <CAST_WALLET> (10 token of 18 decimal)
 
