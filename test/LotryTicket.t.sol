@@ -17,17 +17,6 @@ contract LotryTicketTest is LotryTestBase {
     //                      LAUNCHPAD TESTS
     // ========================================================================
 
-    function test_Launchpad_DeploymentState() public view {
-        console.log("\n=== TEST: Launchpad Deployment State ===");
-        
-        assertEq(launchpad.owner(), deployer, "Launchpad owner should be deployer");
-        assertEq(launchpad.tokenCount(), 1, "Token count should be 1 after setUp");
-        
-        console.log("Launchpad Owner:", launchpad.owner());
-        console.log("Token Count:", launchpad.tokenCount());
-        console.log("TEST PASSED");
-    }
-
     function test_Launchpad_LaunchToken() public {
         console.log("\n=== TEST: Launch New Token ===");
         

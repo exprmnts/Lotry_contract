@@ -13,10 +13,6 @@ import {LotryTicket} from "../contracts/LotryTicket.sol";
  */
 contract LotryTicketSimulationTest is LotryTestBase {
 
-    // ========================================================================
-    //                      MAIN BUY SIMULATION TEST (WITH TAX)
-    // ========================================================================
-
     /**
      * @notice Main test: Performs 50 actual buys and displays results in a table
      * @dev This tests the real buy() function from the contract with 11% tax applied
@@ -120,10 +116,6 @@ contract LotryTicketSimulationTest is LotryTestBase {
         uint256 expectedTax = (totalLotrySpent * TAX_NUMERATOR) / TAX_DENOMINATOR;
         assertApproxEqRel(finalTaxPot, expectedTax, 1e15, "Tax pot should be 11% of total spent");
     }
-
-    // ========================================================================
-    //                      LOTRY REQUIREMENTS AT CIRCULATION LEVELS
-    // ========================================================================
 
     /**
      * @notice Shows $LOTRY requirements to reach various circulation levels
