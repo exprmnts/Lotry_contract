@@ -17,8 +17,10 @@ RPC_URL ?= $(shell echo $$RPC_URL)
 # Set WALLET_NAME based on TARGET_ENV
 ifeq ($(TARGET_ENV),base)
 WALLET_NAME ?= baseWallet
+WALLET_ADDR ?= 0x9dbbBfBb5e2b1b2C5754becECa4E1e473b852a65
 else
 WALLET_NAME ?= baseSepoliaWallet
+WALLET_ADDR ?= 0x3513C0F1420b7D4793158Ae5eb5985BBf34d5911
 endif
 VERBOSITY ?= -vvvvv
 
@@ -164,8 +166,21 @@ check-winner: check-env ## Check the picked wallet from VRF contract (usage: mak
 	fi
 	@echo "$(BLUE)🔍 Checking picked wallet...$(NC)"
 	@echo "$(YELLOW)   Contract: $(DEPLOYED_VRF_CA)$(NC)"
-	cast call $(DEPLOYED_VRF_CA) "getPickedWallet()" --rpc-url $(RPC_URL)
+   cast call $(DEPLOYED_VRF_CA) "getPickedWallet()" --rpc-url $(RPC_URL)
 	@echo "$(GREEN)✅ Winner Found!$(NC)"
+
+##@ Token Operations
+
+generate-tokens: check-env ## Generate tokens to the wallets
+	@echo "$(BLUE)💰 Generating ERC20 tokens...$(NC)"
+	@echo "$(YELLOW)   Network: $(TARGET_ENV)$(NC)"
+	@echo "$(YELLOW)   Wallet: $(WALLET_NAME)$(NC)"
+	forge script script/TokenGenerator.s.sol:TokenGenerator \
+		--rpc-url $(RPC_URL) \
+		--account $(WALLET_NAME) \
+		--sender $(WALLET_ADDR) \
+		--broadcast $(VERBOSITY)
+	@echo "$(GREEN)✅ Token generation complete!$(NC)"
 
 ##@ Quick Commands
 
