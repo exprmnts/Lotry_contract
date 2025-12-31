@@ -105,7 +105,7 @@ contract MockSmartWallet {
 abstract contract LotryTestBase is Test {
     // ============ Constants ============
     uint256 constant LOTRY_SCALE = 1e10;
-    uint256 constant MIN_BUY = 10000000;
+    uint256 constant MIN_BUY = 1;
     uint256 constant INITIAL_SUPPLY = 1_000_000_000 * 1e18; // 1B tokens
     uint256 constant TAX_NUMERATOR = 11;
     uint256 constant TAX_DENOMINATOR = 100;
