@@ -54,7 +54,7 @@ error Ticket__InvalidLotryToken();
 contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    uint256 private constant MIN_BUY = 10000000; // Minimum buy in $LOTRY (external units, e.g., 0.01 $LOTRY with 18 decimals = 1e16)
+    uint256 private constant MIN_BUY = 1; // Minimum buy in $LOTRY
     uint256 private constant ONE_ETHER = 1e18;
     uint256 private constant TAX_NUMERATOR = 11;
     uint256 private constant TAX_DENOMINATOR = 100;
