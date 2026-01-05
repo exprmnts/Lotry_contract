@@ -1,4 +1,4 @@
-.PHONY: help install build test deploy launchpad vrf test-vrf clean coverage env-setup wallet-import wallet-list check-env
+.PHONY: help install build test deploy launchpad vrf test-vrf verify-launchpad verify-vrf launch-token verify-token clean coverage env-setup wallet-import wallet-list check-env
 
 # Default target
 .DEFAULT_GOAL := help
@@ -13,6 +13,22 @@ NC := \033[0m # No Color
 # Default values
 TARGET_ENV ?= $(shell echo $$TARGET_ENV)
 RPC_URL ?= $(shell echo $$RPC_URL)
+CHAIN_ID ?= $(shell echo $$CHAIN_ID)
+ETHERSCAN_API_KEY ?= $(shell echo $$ETHERSCAN_API_KEY)
+
+# Contract addresses for verification
+LAUNCHPAD_CA ?= $(shell echo $$LAUNCHPAD_CA)
+DEPLOYER_ADDR ?= $(shell echo $$DEPLOYER_ADDR)
+VRF_CA ?= $(shell echo $$VRF_CA)
+VRF_COORDINATOR ?= $(shell echo $$VRF_COORDINATOR)
+SUBSCRIPTION_ID ?= $(shell echo $$SUBSCRIPTION_ID)
+KEY_HASH ?= $(shell echo $$KEY_HASH)
+
+# Token launch parameters
+TOKEN_CA ?= $(shell echo $$TOKEN_CA)
+TOKEN_NAME ?= $(shell echo $$TOKEN_NAME)
+TOKEN_SYMBOL ?= $(shell echo $$TOKEN_SYMBOL)
+INITIAL_OWNER ?= $(shell echo $$INITIAL_OWNER)
 
 # Set WALLET_NAME based on TARGET_ENV
 ifeq ($(TARGET_ENV),base)
@@ -135,6 +151,97 @@ deploy-vrf: check-env ## Deploy VRF (Random Wallet Picker) contract
 	@echo "$(GREEN)✅ VRF deployment complete!$(NC)"
 	@echo "$(YELLOW)⚠️  Remember to add the deployed contract as a consumer to your VRF subscription$(NC)"
 
+##@ Contract Verification
+
+verify-launchpad: check-env ## Verify Launchpad contract
+	@if [ -z "$(LAUNCHPAD_CA)" ]; then \
+		echo "$(RED)❌ LAUNCHPAD_CA not set!$(NC)"; \
+		echo "   Please add to your .env file:"; \
+		echo "   $(YELLOW)LAUNCHPAD_CA=0x...$(NC)"; \
+		exit 1; \
+	fi
+	@if [ -z "$(DEPLOYER_ADDR)" ]; then \
+		echo "$(RED)❌ DEPLOYER_ADDR not set!$(NC)"; \
+		echo "   Please add to your .env file:"; \
+		echo "   $(YELLOW)DEPLOYER_ADDR=0x...$(NC)"; \
+		exit 1; \
+	fi
+	@if [ -z "$(ETHERSCAN_API_KEY)" ]; then \
+		echo "$(RED)❌ ETHERSCAN_API_KEY not set!$(NC)"; \
+		echo "   Please add to your .env file:"; \
+		echo "   $(YELLOW)ETHERSCAN_API_KEY=your_api_key$(NC)"; \
+		exit 1; \
+	fi
+	@if [ -z "$(CHAIN_ID)" ]; then \
+		echo "$(RED)❌ CHAIN_ID not set!$(NC)"; \
+		echo "   Please add to your .env file:"; \
+		echo "   $(YELLOW)CHAIN_ID=8453$(NC) (for Base) or $(YELLOW)CHAIN_ID=84532$(NC) (for Base Sepolia)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)✓ Verifying Launchpad contract...$(NC)"
+	@echo "$(YELLOW)   Contract: $(LAUNCHPAD_CA)$(NC)"
+	@echo "$(YELLOW)   Deployer: $(DEPLOYER_ADDR)$(NC)"
+	@echo "$(YELLOW)   Chain ID: $(CHAIN_ID)$(NC)"
+	@CONSTRUCTOR_ARGS=$$(cast abi-encode "constructor(address)" $(DEPLOYER_ADDR)); \
+	forge verify-contract \
+		--chain-id $(CHAIN_ID) \
+		--constructor-args $$CONSTRUCTOR_ARGS \
+		$(LAUNCHPAD_CA) \
+		contracts/LotryLaunch.sol:LotryLaunch \
+		--etherscan-api-key $(ETHERSCAN_API_KEY)
+	@echo "$(GREEN)✅ Launchpad contract verified!$(NC)"
+
+verify-vrf: check-env ## Verify RandomWalletPicker contract
+	@if [ -z "$(VRF_CA)" ]; then \
+		echo "$(RED)❌ VRF_CA not set!$(NC)"; \
+		echo "   Please add to your .env file:"; \
+		echo "   $(YELLOW)VRF_CA=0x...$(NC)"; \
+		exit 1; \
+	fi
+	@if [ -z "$(VRF_COORDINATOR)" ]; then \
+		echo "$(RED)❌ VRF_COORDINATOR not set!$(NC)"; \
+		echo "   Please add to your .env file:"; \
+		echo "   $(YELLOW)VRF_COORDINATOR=0x...$(NC)"; \
+		exit 1; \
+	fi
+	@if [ -z "$(SUBSCRIPTION_ID)" ]; then \
+		echo "$(RED)❌ SUBSCRIPTION_ID not set!$(NC)"; \
+		echo "   Please add to your .env file:"; \
+		echo "   $(YELLOW)SUBSCRIPTION_ID=123$(NC)"; \
+		exit 1; \
+	fi
+	@if [ -z "$(KEY_HASH)" ]; then \
+		echo "$(RED)❌ KEY_HASH not set!$(NC)"; \
+		echo "   Please add to your .env file:"; \
+		echo "   $(YELLOW)KEY_HASH=0x...$(NC)"; \
+		exit 1; \
+	fi
+	@if [ -z "$(ETHERSCAN_API_KEY)" ]; then \
+		echo "$(RED)❌ ETHERSCAN_API_KEY not set!$(NC)"; \
+		echo "   Please add to your .env file:"; \
+		echo "   $(YELLOW)ETHERSCAN_API_KEY=your_api_key$(NC)"; \
+		exit 1; \
+	fi
+	@if [ -z "$(CHAIN_ID)" ]; then \
+		echo "$(RED)❌ CHAIN_ID not set!$(NC)"; \
+		echo "   Please add to your .env file:"; \
+		echo "   $(YELLOW)CHAIN_ID=8453$(NC) (for Base) or $(YELLOW)CHAIN_ID=84532$(NC) (for Base Sepolia)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)✓ Verifying RandomWalletPicker contract...$(NC)"
+	@echo "$(YELLOW)   Contract: $(VRF_CA)$(NC)"
+	@echo "$(YELLOW)   VRF Coordinator: $(VRF_COORDINATOR)$(NC)"
+	@echo "$(YELLOW)   Subscription ID: $(SUBSCRIPTION_ID)$(NC)"
+	@echo "$(YELLOW)   Chain ID: $(CHAIN_ID)$(NC)"
+	@CONSTRUCTOR_ARGS=$$(cast abi-encode "constructor(address,uint256,bytes32)" $(VRF_COORDINATOR) $(SUBSCRIPTION_ID) $(KEY_HASH)); \
+	forge verify-contract \
+		--chain-id $(CHAIN_ID) \
+		--constructor-args $$CONSTRUCTOR_ARGS \
+		$(VRF_CA) \
+		contracts/RandomWalletPicker.sol:RandomWalletPicker \
+		--etherscan-api-key $(ETHERSCAN_API_KEY)
+	@echo "$(GREEN)✅ RandomWalletPicker contract verified!$(NC)"
+
 ##@ VRF Operations
 
 test-vrf: check-env ## Test VRF random wallet picker (requires DEPLOYED_VRF_CA env var)
@@ -164,6 +271,86 @@ check-winner: check-env ## Check the picked wallet from VRF contract (usage: mak
 	@echo "$(YELLOW)   Contract: $(DEPLOYED_VRF_CA)$(NC)"
    cast call $(DEPLOYED_VRF_CA) "getPickedWallet()" --rpc-url $(RPC_URL)
 	@echo "$(GREEN)✅ Winner Found!$(NC)"
+
+##@ Token Launch & Verification
+
+launch-token: check-env ## Launch a new token from Launchpad (usage: make launch-token TOKEN_NAME="MyToken" TOKEN_SYMBOL="MTK")
+	@if [ -z "$(LAUNCHPAD_CA)" ]; then \
+		echo "$(RED)❌ LAUNCHPAD_CA not set!$(NC)"; \
+		echo "   Please add to your .env file:"; \
+		echo "   $(YELLOW)LAUNCHPAD_CA=0x...$(NC)"; \
+		exit 1; \
+	fi
+	@if [ -z "$(TOKEN_NAME)" ]; then \
+		echo "$(RED)❌ TOKEN_NAME not set!$(NC)"; \
+		echo "   Usage: make launch-token TOKEN_NAME=\"MyToken\" TOKEN_SYMBOL=\"MTK\""; \
+		exit 1; \
+	fi
+	@if [ -z "$(TOKEN_SYMBOL)" ]; then \
+		echo "$(RED)❌ TOKEN_SYMBOL not set!$(NC)"; \
+		echo "   Usage: make launch-token TOKEN_NAME=\"MyToken\" TOKEN_SYMBOL=\"MTK\""; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)🚀 Launching new token...$(NC)"
+	@echo "$(YELLOW)   Launchpad: $(LAUNCHPAD_CA)$(NC)"
+	@echo "$(YELLOW)   Token Name: $(TOKEN_NAME)$(NC)"
+	@echo "$(YELLOW)   Token Symbol: $(TOKEN_SYMBOL)$(NC)"
+	cast send $(LAUNCHPAD_CA) "launchToken(string,string)" "$(TOKEN_NAME)" "$(TOKEN_SYMBOL)" \
+		--rpc-url $(RPC_URL) \
+		--account $(WALLET_NAME)
+	@echo "$(GREEN)✅ Token launched!$(NC)"
+	@echo "$(YELLOW)ℹ️  Check the transaction receipt for the token address$(NC)"
+	@echo "$(YELLOW)ℹ️  Or check the TokenCreated event logs$(NC)"
+
+verify-token: check-env ## Verify a LotryTicket token contract (usage: make verify-token TOKEN_CA=0x... INITIAL_OWNER=0x... TOKEN_NAME="MyToken" TOKEN_SYMBOL="MTK")
+	@if [ -z "$(TOKEN_CA)" ]; then \
+		echo "$(RED)❌ TOKEN_CA not set!$(NC)"; \
+		echo "   Please add to your .env file or pass as parameter:"; \
+		echo "   $(YELLOW)TOKEN_CA=0x...$(NC)"; \
+		exit 1; \
+	fi
+	@if [ -z "$(INITIAL_OWNER)" ]; then \
+		echo "$(RED)❌ INITIAL_OWNER not set!$(NC)"; \
+		echo "   Please add to your .env file or pass as parameter:"; \
+		echo "   $(YELLOW)INITIAL_OWNER=0x...$(NC)"; \
+		exit 1; \
+	fi
+	@if [ -z "$(TOKEN_NAME)" ]; then \
+		echo "$(RED)❌ TOKEN_NAME not set!$(NC)"; \
+		echo "   Usage: make verify-token TOKEN_CA=0x... INITIAL_OWNER=0x... TOKEN_NAME=\"MyToken\" TOKEN_SYMBOL=\"MTK\""; \
+		exit 1; \
+	fi
+	@if [ -z "$(TOKEN_SYMBOL)" ]; then \
+		echo "$(RED)❌ TOKEN_SYMBOL not set!$(NC)"; \
+		echo "   Usage: make verify-token TOKEN_CA=0x... INITIAL_OWNER=0x... TOKEN_NAME=\"MyToken\" TOKEN_SYMBOL=\"MTK\""; \
+		exit 1; \
+	fi
+	@if [ -z "$(ETHERSCAN_API_KEY)" ]; then \
+		echo "$(RED)❌ ETHERSCAN_API_KEY not set!$(NC)"; \
+		echo "   Please add to your .env file:"; \
+		echo "   $(YELLOW)ETHERSCAN_API_KEY=your_api_key$(NC)"; \
+		exit 1; \
+	fi
+	@if [ -z "$(CHAIN_ID)" ]; then \
+		echo "$(RED)❌ CHAIN_ID not set!$(NC)"; \
+		echo "   Please add to your .env file:"; \
+		echo "   $(YELLOW)CHAIN_ID=8453$(NC) (for Base) or $(YELLOW)CHAIN_ID=84532$(NC) (for Base Sepolia)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)✓ Verifying LotryTicket token...$(NC)"
+	@echo "$(YELLOW)   Contract: $(TOKEN_CA)$(NC)"
+	@echo "$(YELLOW)   Name: $(TOKEN_NAME)$(NC)"
+	@echo "$(YELLOW)   Symbol: $(TOKEN_SYMBOL)$(NC)"
+	@echo "$(YELLOW)   Initial Owner: $(INITIAL_OWNER)$(NC)"
+	@echo "$(YELLOW)   Chain ID: $(CHAIN_ID)$(NC)"
+	@CONSTRUCTOR_ARGS=$$(cast abi-encode "constructor(string,string,address)" "$(TOKEN_NAME)" "$(TOKEN_SYMBOL)" $(INITIAL_OWNER)); \
+	forge verify-contract \
+		--chain-id $(CHAIN_ID) \
+		--constructor-args $$CONSTRUCTOR_ARGS \
+		$(TOKEN_CA) \
+		contracts/LotryTicket.sol:LotryTicket \
+		--etherscan-api-key $(ETHERSCAN_API_KEY)
+	@echo "$(GREEN)✅ LotryTicket token verified!$(NC)"
 
 ##@ Token Operations
 
