@@ -301,11 +301,11 @@ dos2unix .envrc .env.base_sepolia
 export LAUNCH_CONSTRUCTOR=$(cast abi-encode "constructor(address)" "<DEPLOYER_ADDR>")
 
 forge verify-contract \
-    --chain-id <CHAIN_ID> \
+    --chain-id $CHAIN_ID \
     --constructor-args $LAUNCH_CONSTRUCTOR \
-    <LAUNCHPAD_ADDRESS> \
+    $LAUNCHPAD_CA \
     contracts/LotryLaunch.sol:LotryLaunch \
-    --etherscan-api-key <api key>
+    --etherscan-api-key $ETHERSCAN_API_KEY
 ```
 
 ### Verifying RandomWalletPicker Contract
