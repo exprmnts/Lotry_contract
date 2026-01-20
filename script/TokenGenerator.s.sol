@@ -19,8 +19,8 @@ contract MyMintableERC20 is ERC20, Ownable {
 contract TokenGenerator is Script {
     function run() external {
         // Manually add wallet addresses here
-        address[] memory wallets = new address[](19);
-        // wallets[0] = 0xC8c6e80129C781A491998CAA84106ECa58b6f9a9;
+        address[] memory wallets = new address[](1);
+        wallets[0] = 0xC8c6e80129C781A491998CAA84106ECa58b6f9a9;
         // wallets[1] = 0x77370Ed38142932f46CFD3147874bdCA88E0d609;
         // wallets[2] = 0x9dbbBfBb5e2b1b2C5754becECa4E1e473b852a65;
         // wallets[3] = 0xb78f711838EFEd4351a8F144057AC27023bE636C;
