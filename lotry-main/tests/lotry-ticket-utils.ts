@@ -100,7 +100,7 @@ export function createRewardsDistributedEvent(
 
 export function createTradeEventEvent(
   tokenAddress: Address,
-  ethPrice: BigInt
+  lotryPrice: BigInt
 ): TradeEvent {
   let tradeEventEvent = changetype<TradeEvent>(newMockEvent())
 
@@ -114,8 +114,8 @@ export function createTradeEventEvent(
   )
   tradeEventEvent.parameters.push(
     new ethereum.EventParam(
-      "ethPrice",
-      ethereum.Value.fromUnsignedBigInt(ethPrice)
+      "lotryPrice",
+      ethereum.Value.fromUnsignedBigInt(lotryPrice)
     )
   )
 
