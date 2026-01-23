@@ -443,12 +443,12 @@ deposit-reward: check-env ## Deposit reward tokens to pool (usage: make deposit-
 		echo "   Example: AMOUNT=100 for 100 tokens (automatically multiplied by 1e18)"; \
 		exit 1; \
 	fi
-	@echo "$(BLUE)🎁 Depositing reward tokens...$(NC)"
+	@echo "$(BLUE)🎁 Depositing reward tokens (USDC)...$(NC)"
 	@echo "$(YELLOW)   Amount: $(AMOUNT) tokens$(NC)"
 	@echo "$(YELLOW)   Step 1: Approving tokens...$(NC)"
-	cast send $(REWARD_TOKEN) "approve(address,uint256)" $(TICKET_CA) $(shell echo "$(AMOUNT) * 1000000000000000000" | bc) --rpc-url $(RPC_URL) --account $(WALLET_NAME)
+	cast send $(REWARD_TOKEN) "approve(address,uint256)" $(TICKET_CA) $(shell echo "$(AMOUNT) * 1000000" | bc) --rpc-url $(RPC_URL) --account $(WALLET_NAME)
 	@echo "$(YELLOW)   Step 2: Depositing tokens...$(NC)"
-	cast send $(TICKET_CA) "depositRewardTokens(uint256)" $(shell echo "$(AMOUNT) * 1000000000000000000" | bc) --rpc-url $(RPC_URL) --account $(WALLET_NAME)
+	cast send $(TICKET_CA) "depositRewardTokens(uint256)" $(shell echo "$(AMOUNT) * 1000000" | bc) --rpc-url $(RPC_URL) --account $(WALLET_NAME)
 	@echo "$(GREEN)✅ Reward tokens deposited!$(NC)"
 
 ##@ LotryTicket Contract Views
