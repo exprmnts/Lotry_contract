@@ -59,7 +59,7 @@ type RewardsDistributed @entity(immutable: true) {
 type TradeEvent @entity(immutable: true) {
   id: Bytes!
   tokenAddress: Bytes! # address
-  ethPrice: BigInt! # uint256
+  lotryPrice: BigInt! # uint256
   blockNumber: BigInt!
   blockTimestamp: BigInt!
   transactionHash: Bytes!

@@ -8,9 +8,9 @@ dataSources:
     name: LotryLaunch
     network: base
     source:
-      address: "0x1D7d45Bb9D17b4915014d6dcd4C22DC17048DeD4"
+      address: "0x9fdE32f7b98F9FD71074FcA40BeFd8B4c2Fd2bc3"
       abi: LotryLaunch
-      startBlock: 38469179
+      startBlock: 40409774
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
