@@ -79,7 +79,7 @@ export function handleTradeEvent(event: TradeEventEvent): void {
     event.transaction.hash.concatI32(event.logIndex.toI32()),
   )
   entity.tokenAddress = event.params.tokenAddress
-  entity.ethPrice = event.params.ethPrice
+  entity.lotryPrice = event.params.lotryPrice
 
   entity.blockNumber = event.block.number
   entity.blockTimestamp = event.block.timestamp
