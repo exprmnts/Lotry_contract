@@ -248,4 +248,16 @@ contract LotryStaking is Ownable, ReentrancyGuard {
     function hasClaimed(address _user, uint256 _day) external view returns (bool) {
         return dayRewards[_day].hasClaimed[_user];
     }
+
+    // @notice get staking rewards of a day
+    function getDayRewardInfo(uint256 _day)
+        external
+        view
+        returns (address rewardToken, uint256 rewardAmount, uint256 totalStakedSnapshot)
+    {
+        DayReward storage dayReward = dayRewards[_day];
+        rewardToken = address(dayReward.rewardToken);
+        rewardAmount = dayReward.rewardAmount;
+        totalStakedSnapshot = dayReward.totalStakedSnapshot;
+    }
 }
