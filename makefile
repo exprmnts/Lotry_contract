@@ -451,6 +451,30 @@ deposit-reward: check-env ## Deposit reward tokens to pool (usage: make deposit-
 	cast send $(TICKET_CA) "depositRewardTokens(uint256)" $(shell echo "$(AMOUNT) * 1000000" | bc) --rpc-url $(RPC_URL) --account $(WALLET_NAME)
 	@echo "$(GREEN)✅ Reward tokens deposited!$(NC)"
 
+send-to-staking: check-env ## Send minted tokens to staking contract (usage: make send-to-staking TICKET_CA=0x... STAKE_CONTRACT=0x... AMOUNT=1000000)
+	@if [ -z "$(TICKET_CA)" ]; then \
+		echo "$(RED)❌ TICKET_CA not set!$(NC)"; \
+		echo "   Usage: make send-to-staking TICKET_CA=0x... STAKE_CONTRACT=0x... AMOUNT=1000000"; \
+		exit 1; \
+	fi
+	@if [ -z "$(STAKE_CONTRACT)" ]; then \
+		echo "$(RED)❌ STAKE_CONTRACT not set!$(NC)"; \
+		echo "   Usage: make send-to-staking TICKET_CA=0x... STAKE_CONTRACT=0x... AMOUNT=1000000"; \
+		exit 1; \
+	fi
+	@if [ -z "$(AMOUNT)" ]; then \
+		echo "$(RED)❌ AMOUNT not set!$(NC)"; \
+		echo "   Usage: make send-to-staking TICKET_CA=0x... STAKE_CONTRACT=0x... AMOUNT=1000000"; \
+		echo "   Example: AMOUNT=1000000 for 1M tokens (automatically multiplied by 1e18)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)🏦 Sending tokens to staking contract...$(NC)"
+	@echo "$(YELLOW)   Ticket Contract: $(TICKET_CA)$(NC)"
+	@echo "$(YELLOW)   Stake Contract: $(STAKE_CONTRACT)$(NC)"
+	@echo "$(YELLOW)   Amount: $(AMOUNT) tokens$(NC)"
+	cast send $(TICKET_CA) "sendToStaking(address,uint256)" $(STAKE_CONTRACT) $(shell echo "$(AMOUNT) * 1000000000000000000" | bc) --rpc-url $(RPC_URL) --account $(WALLET_NAME)
+	@echo "$(GREEN)✅ Tokens sent to staking contract!$(NC)"
+
 ##@ LotryTicket Contract Views
 
 check-pool-fee: check-env ## Check accumulated pool fee balance (usage: make check-pool-fee TICKET_CA=0x...)
