@@ -321,6 +321,77 @@ forge verify-contract \
     --etherscan-api-key IFK78GXHGQRAD7NQ4FA16P2F26AHIDA2GH
 ```
 
+## Lotry Staking
+
+```
+# 1. Set stake token address
+cast send $LOTRY_STAKING "setStakeToken(address)" $LOTRY_TOKEN \
+  --rpc-url $RPC_URL \
+  --private-key $PRIVATE_KEY
+
+# 2. Approve staking contract to spend LOTRY tokens
+cast send $LOTRY_TOKEN "approve(address,uint256)" $LOTRY_STAKING $(cast max-uint256) \
+  --rpc-url $RPC_URL \
+  --private-key $PRIVATE_KEY
+
+# 3. Stake 1000 LOTRY tokens
+cast send $LOTRY_STAKING "stake(uint256)" 1000000000000000000000 \
+  --rpc-url $RPC_URL \
+  --private-key $PRIVATE_KEY
+
+# 4. Set daily reward (admin)
+# First approve reward token
+cast send $REWARD_TOKEN "approve(address,uint256)" $LOTRY_STAKING 500000000000000000000 \
+  --rpc-url $RPC_URL \
+  --private-key $ADMIN_KEY
+
+# Then set daily reward
+cast send $LOTRY_STAKING "setDailyReward(address,uint256)" \
+  $REWARD_TOKEN \
+  500000000000000000000 \
+  --rpc-url $RPC_URL \
+  --private-key $ADMIN_KEY
+
+# 5. Check stake info
+cast call $LOTRY_STAKING "getStakeInfo(address)" $USER_ADDRESS \
+  --rpc-url $RPC_URL
+
+# 6. Calculate pending reward for day 1
+cast call $LOTRY_STAKING "calculateReward(address,uint256)" $USER_ADDRESS 1 \
+  --rpc-url $RPC_URL
+
+# 7. Claim reward for day 1
+cast send $LOTRY_STAKING "claimReward(uint256)" 1 \
+  --rpc-url $RPC_URL \
+  --private-key $PRIVATE_KEY
+
+# 8. Initiate unstake
+cast send $LOTRY_STAKING "initiateUnstake()" \
+  --rpc-url $RPC_URL \
+  --private-key $PRIVATE_KEY
+
+# 9. Cancel unstake (if needed)
+cast send $LOTRY_STAKING "cancelUnstake()" \
+  --rpc-url $RPC_URL \
+  --private-key $PRIVATE_KEY
+
+# 10. Unstake after 2 weeks
+cast send $LOTRY_STAKING "unstake()" \
+  --rpc-url $RPC_URL \
+  --private-key $PRIVATE_KEY
+
+# Helper: Check current day
+cast call $LOTRY_STAKING "currentDay()" --rpc-url $RPC_URL
+
+# Helper: Check total staked
+cast call $LOTRY_STAKING "totalStaked()" --rpc-url $RPC_URL
+
+# Helper: Check if claimed for day 1
+cast call $LOTRY_STAKING "hasClaimed(address,uint256)" $USER_ADDRESS 1 \
+  --rpc-url $RPC_URL
+```
+
+
 ## 🔒 Security
 
 ### Security Considerations
