@@ -197,10 +197,9 @@ contract LotryStaking is Ownable, ReentrancyGuard {
 
         StakeInfo storage stakeInfo = stakes[msg.sender];
 
-        // User must have had stake at the snapshot AND not be unstaking
-        // Note: If user initiated unstake after this day's snapshot, their stake
-        // was included in the snapshot, so they can claim
         if (stakeInfo.amount == 0) revert NoStakeAtSnapshot();
+
+        if (stakeInfo.isUnstaking) revert NoStakeAtSnapshot();
 
         // calculate pro-rata reward
         uint256 userReward = (dayReward.rewardAmount * stakeInfo.amount) / dayReward.totalStakedSnapshot;
@@ -240,6 +239,8 @@ contract LotryStaking is Ownable, ReentrancyGuard {
 
         StakeInfo storage stakeInfo = stakes[_user];
         if (stakeInfo.amount == 0) return 0;
+
+        if (stakeInfo.isUnstaking) return 0;
 
         return (dayReward.rewardAmount * stakeInfo.amount) / dayReward.totalStakedSnapshot;
     }
