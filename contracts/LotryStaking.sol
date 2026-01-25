@@ -20,11 +20,10 @@ pragma solidity ^0.8.20;
 
 */
 
-/**
- * @title Lotry Staking
- * @author @lotrydotfun
- * @notice This contract is for staking a Lotry Token. Pro-rata reward distribution based on stake percentage
- */
+// @title Lotry Staking
+// @author @lotrydotfun
+// @notice This contract is for staking a Lotry Token. Pro-rata reward distribution based on stake percentage
+
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
