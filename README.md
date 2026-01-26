@@ -389,6 +389,31 @@ cast call $LOTRY_STAKING "totalStaked()" --rpc-url $RPC_URL
 # Helper: Check if claimed for day 1
 cast call $LOTRY_STAKING "hasClaimed(address,uint256)" $USER_ADDRESS 1 \
   --rpc-url $RPC_URL
+
+
+# 10. Set daily claim amount (resets pool to 0), reward token should be set before this
+
+cast send $LOTRY_STAKING "setDailyClaim(uint256)" \
+  100000000000000000000 \
+  --rpc-url $RPC_URL \
+  --private-key $ADMIN_KEY
+
+# 11. Deposit tokens for daily claims (tracked separately)
+cast send $REWARD_TOKEN "approve(address,uint256)" \
+  $LOTRY_STAKING \
+  1000000000000000000000 \
+  --rpc-url $RPC_URL \
+  --private-key $ADMIN_KEY
+
+cast send $LOTRY_STAKING "depositDailyClaimTokens(uint256)" \
+  1000000000000000000000 \
+  --rpc-url $RPC_URL \
+  --private-key $ADMIN_KEY
+
+# 12. User claims daily tokens
+cast send $LOTRY_STAKING "claimDaily()" \
+  --rpc-url $RPC_URL \
+  --private-key $USER_KEY
 ```
 
 
