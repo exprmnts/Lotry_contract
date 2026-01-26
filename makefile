@@ -18,7 +18,6 @@ ETHERSCAN_API_KEY ?= $(shell echo $$ETHERSCAN_API_KEY)
 
 # Contract addresses for verification
 LAUNCHPAD_CA ?= $(shell echo $$LAUNCHPAD_CA)
-DEPLOYER_ADDR ?= $(shell echo $$DEPLOYER_ADDR)
 VRF_CA ?= $(shell echo $$VRF_CA)
 VRF_COORDINATOR ?= $(shell echo $$VRF_COORDINATOR)
 SUBSCRIPTION_ID ?= $(shell echo $$SUBSCRIPTION_ID)
@@ -28,7 +27,6 @@ KEY_HASH ?= $(shell echo $$KEY_HASH)
 TOKEN_CA ?= $(shell echo $$TOKEN_CA)
 TOKEN_NAME ?= $(shell echo $$TOKEN_NAME)
 TOKEN_SYMBOL ?= $(shell echo $$TOKEN_SYMBOL)
-INITIAL_OWNER ?= $(shell echo $$INITIAL_OWNER)
 
 # Set WALLET_NAME based on TARGET_ENV
 ifeq ($(TARGET_ENV),base)
@@ -160,12 +158,6 @@ verify-launchpad: check-env ## Verify Launchpad contract
 		echo "   $(YELLOW)LAUNCHPAD_CA=0x...$(NC)"; \
 		exit 1; \
 	fi
-	@if [ -z "$(DEPLOYER_ADDR)" ]; then \
-		echo "$(RED)❌ DEPLOYER_ADDR not set!$(NC)"; \
-		echo "   Please add to your .env file:"; \
-		echo "   $(YELLOW)DEPLOYER_ADDR=0x...$(NC)"; \
-		exit 1; \
-	fi
 	@if [ -z "$(ETHERSCAN_API_KEY)" ]; then \
 		echo "$(RED)❌ ETHERSCAN_API_KEY not set!$(NC)"; \
 		echo "   Please add to your .env file:"; \
@@ -180,9 +172,9 @@ verify-launchpad: check-env ## Verify Launchpad contract
 	fi
 	@echo "$(BLUE)✓ Verifying Launchpad contract...$(NC)"
 	@echo "$(YELLOW)   Contract: $(LAUNCHPAD_CA)$(NC)"
-	@echo "$(YELLOW)   Deployer: $(DEPLOYER_ADDR)$(NC)"
+	@echo "$(YELLOW)   Deployer: $(WALLET_ADDR)$(NC)"
 	@echo "$(YELLOW)   Chain ID: $(CHAIN_ID)$(NC)"
-	@CONSTRUCTOR_ARGS=$$(cast abi-encode "constructor(address)" $(DEPLOYER_ADDR)); \
+	@CONSTRUCTOR_ARGS=$$(cast abi-encode "constructor(address)" $(WALLET_ADDR)); \
 	forge verify-contract \
 		--chain-id $(CHAIN_ID) \
 		--constructor-args $$CONSTRUCTOR_ARGS \
@@ -302,27 +294,21 @@ launch-token: check-env ## Launch a new token from Launchpad (usage: make launch
 	@echo "$(YELLOW)ℹ️  Check the transaction receipt for the token address$(NC)"
 	@echo "$(YELLOW)ℹ️  Or check the TokenCreated event logs$(NC)"
 
-verify-token: check-env ## Verify a LotryTicket token contract (usage: make verify-token TOKEN_CA=0x... INITIAL_OWNER=0x... TOKEN_NAME="MyToken" TOKEN_SYMBOL="MTK")
+verify-token: check-env ## Verify a LotryTicket token contract (usage: make verify-token TOKEN_CA=0x... TOKEN_NAME="MyToken" TOKEN_SYMBOL="MTK")
 	@if [ -z "$(TOKEN_CA)" ]; then \
 		echo "$(RED)❌ TOKEN_CA not set!$(NC)"; \
 		echo "   Please add to your .env file or pass as parameter:"; \
 		echo "   $(YELLOW)TOKEN_CA=0x...$(NC)"; \
 		exit 1; \
 	fi
-	@if [ -z "$(INITIAL_OWNER)" ]; then \
-		echo "$(RED)❌ INITIAL_OWNER not set!$(NC)"; \
-		echo "   Please add to your .env file or pass as parameter:"; \
-		echo "   $(YELLOW)INITIAL_OWNER=0x...$(NC)"; \
-		exit 1; \
-	fi
 	@if [ -z "$(TOKEN_NAME)" ]; then \
 		echo "$(RED)❌ TOKEN_NAME not set!$(NC)"; \
-		echo "   Usage: make verify-token TOKEN_CA=0x... INITIAL_OWNER=0x... TOKEN_NAME=\"MyToken\" TOKEN_SYMBOL=\"MTK\""; \
+		echo "   Usage: make verify-token TOKEN_CA=0x... TOKEN_NAME=\"MyToken\" TOKEN_SYMBOL=\"MTK\""; \
 		exit 1; \
 	fi
 	@if [ -z "$(TOKEN_SYMBOL)" ]; then \
 		echo "$(RED)❌ TOKEN_SYMBOL not set!$(NC)"; \
-		echo "   Usage: make verify-token TOKEN_CA=0x... INITIAL_OWNER=0x... TOKEN_NAME=\"MyToken\" TOKEN_SYMBOL=\"MTK\""; \
+		echo "   Usage: make verify-token TOKEN_CA=0x... TOKEN_NAME=\"MyToken\" TOKEN_SYMBOL=\"MTK\""; \
 		exit 1; \
 	fi
 	@if [ -z "$(ETHERSCAN_API_KEY)" ]; then \
@@ -341,9 +327,9 @@ verify-token: check-env ## Verify a LotryTicket token contract (usage: make veri
 	@echo "$(YELLOW)   Contract: $(TOKEN_CA)$(NC)"
 	@echo "$(YELLOW)   Name: $(TOKEN_NAME)$(NC)"
 	@echo "$(YELLOW)   Symbol: $(TOKEN_SYMBOL)$(NC)"
-	@echo "$(YELLOW)   Initial Owner: $(INITIAL_OWNER)$(NC)"
+	@echo "$(YELLOW)   Initial Owner: $(WALLET_ADDR)$(NC)"
 	@echo "$(YELLOW)   Chain ID: $(CHAIN_ID)$(NC)"
-	@CONSTRUCTOR_ARGS=$$(cast abi-encode "constructor(string,string,address)" "$(TOKEN_NAME)" "$(TOKEN_SYMBOL)" $(INITIAL_OWNER)); \
+	@CONSTRUCTOR_ARGS=$$(cast abi-encode "constructor(string,string,address)" "$(TOKEN_NAME)" "$(TOKEN_SYMBOL)" $(WALLET_ADDR)); \
 	forge verify-contract \
 		--chain-id $(CHAIN_ID) \
 		--constructor-args $$CONSTRUCTOR_ARGS \
