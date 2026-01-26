@@ -3,16 +3,6 @@
         "type": "constructor",
         "inputs": [
             {
-                "name": "name",
-                "type": "string",
-                "internalType": "string"
-            },
-            {
-                "name": "symbol",
-                "type": "string",
-                "internalType": "string"
-            },
-            {
                 "name": "initialOwner",
                 "type": "address",
                 "internalType": "address"
@@ -22,7 +12,7 @@
     },
     {
         "type": "function",
-        "name": "I_CONSTANT_K",
+        "name": "UNLOCK_PERIOD",
         "inputs": [],
         "outputs": [
             {
@@ -35,43 +25,17 @@
     },
     {
         "type": "function",
-        "name": "accumulatedPoolFee",
-        "inputs": [],
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "accumulatedRewardTokens",
-        "inputs": [],
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "allowance",
+        "name": "calculateReward",
         "inputs": [
             {
-                "name": "owner",
+                "name": "_user",
                 "type": "address",
                 "internalType": "address"
             },
             {
-                "name": "spender",
-                "type": "address",
-                "internalType": "address"
+                "name": "_day",
+                "type": "uint256",
+                "internalType": "uint256"
             }
         ],
         "outputs": [
@@ -85,17 +49,12 @@
     },
     {
         "type": "function",
-        "name": "approve",
+        "name": "canClaimDaily",
         "inputs": [
             {
-                "name": "spender",
+                "name": "_user",
                 "type": "address",
                 "internalType": "address"
-            },
-            {
-                "name": "value",
-                "type": "uint256",
-                "internalType": "uint256"
             }
         ],
         "outputs": [
@@ -105,163 +64,246 @@
                 "internalType": "bool"
             }
         ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
+        "name": "claimDaily",
+        "inputs": [],
+        "outputs": [],
         "stateMutability": "nonpayable"
     },
     {
         "type": "function",
-        "name": "balanceOf",
+        "name": "claimReward",
         "inputs": [
             {
-                "name": "account",
+                "name": "_day",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "type": "function",
+        "name": "currentDay",
+        "inputs": [],
+        "outputs": [
+            {
+                "name": "",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
+        "name": "currentDayRewardPool",
+        "inputs": [],
+        "outputs": [
+            {
+                "name": "",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
+        "name": "currentRewardToken",
+        "inputs": [],
+        "outputs": [
+            {
+                "name": "",
+                "type": "address",
+                "internalType": "contract IERC20"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
+        "name": "dailyClaimAmount",
+        "inputs": [],
+        "outputs": [
+            {
+                "name": "",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
+        "name": "dailyClaimDay",
+        "inputs": [],
+        "outputs": [
+            {
+                "name": "",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
+        "name": "dailyClaimPoolBalance",
+        "inputs": [],
+        "outputs": [
+            {
+                "name": "",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
+        "name": "dailyClaimToken",
+        "inputs": [],
+        "outputs": [
+            {
+                "name": "",
+                "type": "address",
+                "internalType": "contract IERC20"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
+        "name": "dayRewards",
+        "inputs": [
+            {
+                "name": "",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "rewardToken",
+                "type": "address",
+                "internalType": "contract IERC20"
+            },
+            {
+                "name": "rewardAmount",
+                "type": "uint256",
+                "internalType": "uint256"
+            },
+            {
+                "name": "totalStakedSnapshot",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
+        "name": "depositDailyClaimTokens",
+        "inputs": [
+            {
+                "name": "_amount",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "type": "function",
+        "name": "getDailyClaimInfo",
+        "inputs": [],
+        "outputs": [
+            {
+                "name": "token",
                 "type": "address",
                 "internalType": "address"
-            }
-        ],
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "buy",
-        "inputs": [
-            {
-                "name": "lotryAmountExternal",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
-        "name": "calculateBuyReturn",
-        "inputs": [
-            {
-                "name": "netLotryAmountInternal",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "calculateCurrentPrice",
-        "inputs": [],
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "calculateCurrentPriceExternal",
-        "inputs": [],
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "calculateSellReturn",
-        "inputs": [
-            {
-                "name": "tokenAmount",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "decimals",
-        "inputs": [],
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint8",
-                "internalType": "uint8"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "depositLotryTokens",
-        "inputs": [
-            {
-                "name": "amountExternal",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
-        "name": "depositRewardTokens",
-        "inputs": [
+            },
             {
                 "name": "amount",
                 "type": "uint256",
                 "internalType": "uint256"
+            },
+            {
+                "name": "day",
+                "type": "uint256",
+                "internalType": "uint256"
+            },
+            {
+                "name": "availablePool",
+                "type": "uint256",
+                "internalType": "uint256"
             }
         ],
-        "outputs": [],
-        "stateMutability": "nonpayable"
+        "stateMutability": "view"
     },
     {
         "type": "function",
-        "name": "distributeRewards",
+        "name": "getDayRewardInfo",
         "inputs": [
             {
-                "name": "winner",
+                "name": "_day",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "rewardToken",
+                "type": "address",
+                "internalType": "address"
+            },
+            {
+                "name": "rewardAmount",
+                "type": "uint256",
+                "internalType": "uint256"
+            },
+            {
+                "name": "totalStakedSnapshot",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
+        "name": "getStakeInfo",
+        "inputs": [
+            {
+                "name": "_user",
                 "type": "address",
                 "internalType": "address"
             }
         ],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
-        "name": "getAccumulatedPoolFeeExternal",
-        "inputs": [],
         "outputs": [
             {
-                "name": "",
+                "name": "amount",
+                "type": "uint256",
+                "internalType": "uint256"
+            },
+            {
+                "name": "unstakeInitiatedAt",
+                "type": "uint256",
+                "internalType": "uint256"
+            },
+            {
+                "name": "isUnstaking",
+                "type": "bool",
+                "internalType": "bool"
+            },
+            {
+                "name": "unlockTime",
                 "type": "uint256",
                 "internalType": "uint256"
             }
@@ -270,47 +312,19 @@
     },
     {
         "type": "function",
-        "name": "getLotryBalance",
-        "inputs": [],
-        "outputs": [
+        "name": "hasClaimed",
+        "inputs": [
             {
-                "name": "",
+                "name": "_user",
+                "type": "address",
+                "internalType": "address"
+            },
+            {
+                "name": "_day",
                 "type": "uint256",
                 "internalType": "uint256"
             }
         ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "getLotryRaisedExternal",
-        "inputs": [],
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "getRewardTokenBalance",
-        "inputs": [],
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "liquidityPulled",
-        "inputs": [],
         "outputs": [
             {
                 "name": "",
@@ -322,39 +336,26 @@
     },
     {
         "type": "function",
-        "name": "lotryRaised",
+        "name": "initiateUnstake",
         "inputs": [],
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
+        "outputs": [],
+        "stateMutability": "nonpayable"
     },
     {
         "type": "function",
-        "name": "lotryTokenAddress",
-        "inputs": [],
-        "outputs": [
+        "name": "lastClaimedDay",
+        "inputs": [
             {
                 "name": "",
                 "type": "address",
                 "internalType": "address"
             }
         ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "name",
-        "inputs": [],
         "outputs": [
             {
                 "name": "",
-                "type": "string",
-                "internalType": "string"
+                "type": "uint256",
+                "internalType": "uint256"
             }
         ],
         "stateMutability": "view"
@@ -374,24 +375,6 @@
     },
     {
         "type": "function",
-        "name": "pullLiquidity",
-        "inputs": [
-            {
-                "name": "wallets",
-                "type": "address[]",
-                "internalType": "address[]"
-            },
-            {
-                "name": "amounts",
-                "type": "uint256[]",
-                "internalType": "uint256[]"
-            }
-        ],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
         "name": "renounceOwnership",
         "inputs": [],
         "outputs": [],
@@ -399,23 +382,10 @@
     },
     {
         "type": "function",
-        "name": "rewardTokenAddress",
-        "inputs": [],
-        "outputs": [
-            {
-                "name": "",
-                "type": "address",
-                "internalType": "address"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "sell",
+        "name": "setDailyClaim",
         "inputs": [
             {
-                "name": "tokenAmount",
+                "name": "_amount",
                 "type": "uint256",
                 "internalType": "uint256"
             }
@@ -425,64 +395,93 @@
     },
     {
         "type": "function",
-        "name": "sendToStaking",
+        "name": "setDailyReward",
         "inputs": [
             {
-                "name": "owner",
+                "name": "_rewardToken",
                 "type": "address",
                 "internalType": "address"
             },
+            {
+                "name": "_amount",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "type": "function",
+        "name": "setStakeToken",
+        "inputs": [
+            {
+                "name": "_stakeToken",
+                "type": "address",
+                "internalType": "address"
+            }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "type": "function",
+        "name": "stake",
+        "inputs": [
+            {
+                "name": "_amount",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "type": "function",
+        "name": "stakeToken",
+        "inputs": [],
+        "outputs": [
+            {
+                "name": "",
+                "type": "address",
+                "internalType": "contract IERC20"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
+        "name": "stakes",
+        "inputs": [
+            {
+                "name": "",
+                "type": "address",
+                "internalType": "address"
+            }
+        ],
+        "outputs": [
             {
                 "name": "amount",
                 "type": "uint256",
                 "internalType": "uint256"
-            }
-        ],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
-        "name": "setLotryToken",
-        "inputs": [
+            },
             {
-                "name": "tokenAddress",
-                "type": "address",
-                "internalType": "address"
-            }
-        ],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
-        "name": "setRewardToken",
-        "inputs": [
+                "name": "unstakeInitiatedAt",
+                "type": "uint256",
+                "internalType": "uint256"
+            },
             {
-                "name": "tokenAddress",
-                "type": "address",
-                "internalType": "address"
-            }
-        ],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
-        "name": "symbol",
-        "inputs": [],
-        "outputs": [
-            {
-                "name": "",
-                "type": "string",
-                "internalType": "string"
+                "name": "isUnstaking",
+                "type": "bool",
+                "internalType": "bool"
             }
         ],
         "stateMutability": "view"
     },
     {
         "type": "function",
-        "name": "totalSupply",
+        "name": "totalStaked",
         "inputs": [],
         "outputs": [
             {
@@ -492,59 +491,6 @@
             }
         ],
         "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "transfer",
-        "inputs": [
-            {
-                "name": "to",
-                "type": "address",
-                "internalType": "address"
-            },
-            {
-                "name": "value",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "outputs": [
-            {
-                "name": "",
-                "type": "bool",
-                "internalType": "bool"
-            }
-        ],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
-        "name": "transferFrom",
-        "inputs": [
-            {
-                "name": "from",
-                "type": "address",
-                "internalType": "address"
-            },
-            {
-                "name": "to",
-                "type": "address",
-                "internalType": "address"
-            },
-            {
-                "name": "value",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "outputs": [
-            {
-                "name": "",
-                "type": "bool",
-                "internalType": "bool"
-            }
-        ],
-        "stateMutability": "nonpayable"
     },
     {
         "type": "function",
@@ -560,42 +506,11 @@
         "stateMutability": "nonpayable"
     },
     {
-        "type": "event",
-        "name": "Approval",
-        "inputs": [
-            {
-                "name": "owner",
-                "type": "address",
-                "indexed": true,
-                "internalType": "address"
-            },
-            {
-                "name": "spender",
-                "type": "address",
-                "indexed": true,
-                "internalType": "address"
-            },
-            {
-                "name": "value",
-                "type": "uint256",
-                "indexed": false,
-                "internalType": "uint256"
-            }
-        ],
-        "anonymous": false
-    },
-    {
-        "type": "event",
-        "name": "LiquidityPulled",
-        "inputs": [
-            {
-                "name": "totalAmountDistributed",
-                "type": "uint256",
-                "indexed": false,
-                "internalType": "uint256"
-            }
-        ],
-        "anonymous": false
+        "type": "function",
+        "name": "unstake",
+        "inputs": [],
+        "outputs": [],
+        "stateMutability": "nonpayable"
     },
     {
         "type": "event",
@@ -618,41 +533,22 @@
     },
     {
         "type": "event",
-        "name": "RewardsDistributed",
+        "name": "RewardClaimed",
         "inputs": [
             {
-                "name": "winner",
+                "name": "user",
                 "type": "address",
                 "indexed": true,
                 "internalType": "address"
             },
             {
-                "name": "winnerPrizeAmount",
+                "name": "day",
                 "type": "uint256",
-                "indexed": false,
-                "internalType": "uint256"
-            },
-            {
-                "name": "protocolAmount",
-                "type": "uint256",
-                "indexed": false,
-                "internalType": "uint256"
-            }
-        ],
-        "anonymous": false
-    },
-    {
-        "type": "event",
-        "name": "TradeEvent",
-        "inputs": [
-            {
-                "name": "tokenAddress",
-                "type": "address",
                 "indexed": true,
-                "internalType": "address"
+                "internalType": "uint256"
             },
             {
-                "name": "lotryPrice",
+                "name": "amount",
                 "type": "uint256",
                 "indexed": false,
                 "internalType": "uint256"
@@ -662,22 +558,98 @@
     },
     {
         "type": "event",
-        "name": "Transfer",
+        "name": "RewardTokenSet",
         "inputs": [
             {
-                "name": "from",
+                "name": "day",
+                "type": "uint256",
+                "indexed": true,
+                "internalType": "uint256"
+            },
+            {
+                "name": "token",
                 "type": "address",
                 "indexed": true,
                 "internalType": "address"
             },
             {
-                "name": "to",
+                "name": "amount",
+                "type": "uint256",
+                "indexed": false,
+                "internalType": "uint256"
+            }
+        ],
+        "anonymous": false
+    },
+    {
+        "type": "event",
+        "name": "StakeTokenSet",
+        "inputs": [
+            {
+                "name": "token",
+                "type": "address",
+                "indexed": true,
+                "internalType": "address"
+            }
+        ],
+        "anonymous": false
+    },
+    {
+        "type": "event",
+        "name": "Staked",
+        "inputs": [
+            {
+                "name": "user",
                 "type": "address",
                 "indexed": true,
                 "internalType": "address"
             },
             {
-                "name": "value",
+                "name": "amount",
+                "type": "uint256",
+                "indexed": false,
+                "internalType": "uint256"
+            }
+        ],
+        "anonymous": false
+    },
+    {
+        "type": "event",
+        "name": "UnstakeInitiated",
+        "inputs": [
+            {
+                "name": "user",
+                "type": "address",
+                "indexed": true,
+                "internalType": "address"
+            },
+            {
+                "name": "amount",
+                "type": "uint256",
+                "indexed": false,
+                "internalType": "uint256"
+            },
+            {
+                "name": "unlockTime",
+                "type": "uint256",
+                "indexed": false,
+                "internalType": "uint256"
+            }
+        ],
+        "anonymous": false
+    },
+    {
+        "type": "event",
+        "name": "Unstaked",
+        "inputs": [
+            {
+                "name": "user",
+                "type": "address",
+                "indexed": true,
+                "internalType": "address"
+            },
+            {
+                "name": "amount",
                 "type": "uint256",
                 "indexed": false,
                 "internalType": "uint256"
@@ -687,89 +659,48 @@
     },
     {
         "type": "error",
-        "name": "ERC20InsufficientAllowance",
-        "inputs": [
-            {
-                "name": "spender",
-                "type": "address",
-                "internalType": "address"
-            },
-            {
-                "name": "allowance",
-                "type": "uint256",
-                "internalType": "uint256"
-            },
-            {
-                "name": "needed",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ]
+        "name": "AlreadyClaimed",
+        "inputs": []
     },
     {
         "type": "error",
-        "name": "ERC20InsufficientBalance",
-        "inputs": [
-            {
-                "name": "sender",
-                "type": "address",
-                "internalType": "address"
-            },
-            {
-                "name": "balance",
-                "type": "uint256",
-                "internalType": "uint256"
-            },
-            {
-                "name": "needed",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ]
+        "name": "AlreadyClaimedToday",
+        "inputs": []
     },
     {
         "type": "error",
-        "name": "ERC20InvalidApprover",
-        "inputs": [
-            {
-                "name": "approver",
-                "type": "address",
-                "internalType": "address"
-            }
-        ]
+        "name": "AlreadyUnstaking",
+        "inputs": []
     },
     {
         "type": "error",
-        "name": "ERC20InvalidReceiver",
-        "inputs": [
-            {
-                "name": "receiver",
-                "type": "address",
-                "internalType": "address"
-            }
-        ]
+        "name": "InsufficientDailyClaimPool",
+        "inputs": []
     },
     {
         "type": "error",
-        "name": "ERC20InvalidSender",
-        "inputs": [
-            {
-                "name": "sender",
-                "type": "address",
-                "internalType": "address"
-            }
-        ]
+        "name": "InsufficientStake",
+        "inputs": []
     },
     {
         "type": "error",
-        "name": "ERC20InvalidSpender",
-        "inputs": [
-            {
-                "name": "spender",
-                "type": "address",
-                "internalType": "address"
-            }
-        ]
+        "name": "NoDailyClaimAvailable",
+        "inputs": []
+    },
+    {
+        "type": "error",
+        "name": "NoRewardForDay",
+        "inputs": []
+    },
+    {
+        "type": "error",
+        "name": "NoStakeAtSnapshot",
+        "inputs": []
+    },
+    {
+        "type": "error",
+        "name": "NotUnstaking",
+        "inputs": []
     },
     {
         "type": "error",
@@ -811,102 +742,22 @@
     },
     {
         "type": "error",
-        "name": "Ticket__BelowMinimumBuy",
+        "name": "TransferFailed",
         "inputs": []
     },
     {
         "type": "error",
-        "name": "Ticket__ExceedsCirculatingSupply",
+        "name": "UnlockPeriodNotPassed",
         "inputs": []
     },
     {
         "type": "error",
-        "name": "Ticket__ExceedsContractBalance",
+        "name": "ZeroAddress",
         "inputs": []
     },
     {
         "type": "error",
-        "name": "Ticket__FeeExceedsReturn",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "Ticket__InsufficientLotryReserves",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "Ticket__InsufficientTokenBalance",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "Ticket__InsufficientTokenReserves",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "Ticket__InvalidLotryToken",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "Ticket__InvalidNetLotryAmount",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "Ticket__InvalidRewardToken",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "Ticket__InvalidStakeAmount",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "Ticket__InvalidTokenAmount",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "Ticket__LiquidityAlreadyPulled",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "Ticket__MismatchedArrayLengths",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "Ticket__NoLotryTokenSet",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "Ticket__NoRewardTokenSet",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "Ticket__NullWinnerAddress",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "Ticket__TradingDisabled",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "Ticket__ZeroLotryReturn",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "Ticket__ZeroTokenReturn",
+        "name": "ZeroAmount",
         "inputs": []
     }
 ]
