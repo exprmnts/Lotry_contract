@@ -22,7 +22,7 @@ pragma solidity ^0.8.20;
 
 // @title Lotry Staking
 // @author @lotrydotfun
-// @notice This contract is for staking a Lotry Token. Pro-rata reward distribution based on stake percentage
+// @notice This contract is for staking a Lotry Token. Pro-rata reward distribution based on stake percentage. Also daily free ticket claim
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -43,6 +43,12 @@ contract LotryStaking is Ownable, ReentrancyGuard {
     uint256 public currentDayRewardPool;
     uint256 public currentDay;
 
+    // for daily claim
+    uint256 public dailyClaimAmount;
+    IERC20 public dailyClaimToken;
+    uint256 public dailyClaimPoolBalance;
+    uint256 public dailyClaimDay; // track which day this claim is for
+
     struct StakeInfo {
         uint256 amount;
         uint256 unstakeInitiatedAt;
@@ -58,7 +64,7 @@ contract LotryStaking is Ownable, ReentrancyGuard {
 
     mapping(address => StakeInfo) public stakes;
     mapping(uint256 => DayReward) public dayRewards;
-
+    mapping(address => uint256) public lastClaimedDay; // track last day user claimed
     // ============ Events ============
 
     event StakeTokenSet(address indexed token);
@@ -80,6 +86,9 @@ contract LotryStaking is Ownable, ReentrancyGuard {
     error NoRewardForDay();
     error NoStakeAtSnapshot();
     error TransferFailed();
+    error NoDailyClaimAvailable();
+    error AlreadyClaimedToday();
+    error InsufficientDailyClaimPool();
 
     // ============ Constructor ============
 
@@ -260,5 +269,86 @@ contract LotryStaking is Ownable, ReentrancyGuard {
         rewardToken = address(dayReward.rewardToken);
         rewardAmount = dayReward.rewardAmount;
         totalStakedSnapshot = dayReward.totalStakedSnapshot;
+    }
+
+    // ============ Daily Claim Admin Functions ============
+
+    // @notice Set daily claim amount and deposit tokens
+    // @dev This resets the claim tracking for a new day
+    // @param _amount Amount each address can claim
+
+    function setDailyClaim(uint256 _amount) external onlyOwner nonReentrant {
+        if (_amount == 0) revert ZeroAmount();
+        if (address(currentRewardToken) == address(0)) revert ZeroAddress();
+
+        // increment daily claim day (resets who has claimed)
+        dailyClaimDay++;
+
+        dailyClaimAmount = _amount;
+        dailyClaimToken = currentRewardToken;
+
+        // reset pool balance for new day
+        dailyClaimPoolBalance = 0;
+
+        //emit DailyClaimAmountSet(dailyClaimDay, _amount);
+    }
+
+    // @notice Deposit tokens for daily claims
+    // @param _amount Amount of tokens to deposit
+    function depositDailyClaimTokens(uint256 _amount) external onlyOwner nonReentrant {
+        if (_amount == 0) revert ZeroAmount();
+        if (address(dailyClaimToken) == address(0)) revert ZeroAddress();
+
+        dailyClaimPoolBalance += _amount;
+
+        dailyClaimToken.safeTransferFrom(msg.sender, address(this), _amount);
+
+        // emit DailyClaimTokenDeposited(dailyClaimDay, address(dailyClaimToken), _amount);
+    }
+
+    // ============ Daily Claim User Functions ============
+
+    // @notice Claim daily tokens
+    // @dev Each address can claim once per day from separate daily claim pool
+    function claimDaily() external nonReentrant {
+        if (dailyClaimAmount == 0) revert NoDailyClaimAvailable();
+        if (address(dailyClaimToken) == address(0)) revert ZeroAddress();
+
+        // Check if user already claimed today
+        if (lastClaimedDay[msg.sender] == dailyClaimDay) revert AlreadyClaimedToday();
+
+        // Check SEPARATE pool has enough tokens (not contract balance)
+        if (dailyClaimPoolBalance < dailyClaimAmount) revert InsufficientDailyClaimPool();
+
+        // Mark as claimed
+        lastClaimedDay[msg.sender] = dailyClaimDay;
+
+        // Decrease tracked pool balance
+        dailyClaimPoolBalance -= dailyClaimAmount;
+
+        // Transfer tokens
+        dailyClaimToken.safeTransfer(msg.sender, dailyClaimAmount);
+    }
+
+    // @notice Check if address can claim daily tokens
+    function canClaimDaily(address _user) external view returns (bool) {
+        if (dailyClaimAmount == 0) return false;
+        if (address(dailyClaimToken) == address(0)) return false;
+        if (lastClaimedDay[_user] == dailyClaimDay) return false;
+        if (dailyClaimPoolBalance < dailyClaimAmount) return false;
+
+        return true;
+    }
+
+    // @notice Get daily claim info
+    function getDailyClaimInfo()
+        external
+        view
+        returns (address token, uint256 amount, uint256 day, uint256 availablePool)
+    {
+        token = address(dailyClaimToken);
+        amount = dailyClaimAmount;
+        day = dailyClaimDay;
+        availablePool = dailyClaimPoolBalance;
     }
 }
