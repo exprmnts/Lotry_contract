@@ -50,6 +50,8 @@ error Ticket__InvalidRewardToken();
 error Ticket__NoRewardTokenSet();
 error Ticket__NoLotryTokenSet();
 error Ticket__InvalidLotryToken();
+error Ticket__InvalidStakeAddress();
+error Ticket__InvalidStakeAmount();
 
 contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -304,6 +306,15 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
         // Convert to internal scale and add to pool fee
         uint256 amountInternal = amountExternal / LOTRY_SCALE;
         accumulatedPoolFee += amountInternal;
+    }
+
+    // Function to send minted tokens to staking contract (owner only)
+    function sendToStaking(address stakeContract, uint256 amount) external onlyOwner nonReentrant {
+        if (stakeContract == address(0)) revert Ticket__InvalidStakeAddress();
+        if (amount == 0) revert Ticket__InvalidStakeAmount();
+        if (amount > balanceOf(address(this))) revert Ticket__InsufficientTokenReserves();
+
+        _transfer(address(this), stakeContract, amount);
     }
 
     // Function to get the balance of reward tokens in the pot
