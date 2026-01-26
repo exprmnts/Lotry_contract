@@ -60,7 +60,7 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
     uint256 private constant ONE_ETHER = 1e18;
     uint256 private constant TAX_NUMERATOR = 11;
     uint256 private constant TAX_DENOMINATOR = 100;
-    
+
     // Bonding curve constants derived from Python calculator
     // Virtual tokens (V_T): 66,666,666.666667 tokens (with 18 decimals)
     uint256 private constant VIRTUAL_TOKEN_RESERVE = 66_666_666_666667000000000000; // ~66.67M tokens
@@ -70,7 +70,7 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
     // When user sends X $LOTRY tokens, we divide by LOTRY_SCALE to get internal units
     // When contract sends Y internal units, we multiply by LOTRY_SCALE to get $LOTRY tokens
     uint256 private constant LOTRY_SCALE = 1e10;
-    
+
     uint256 private constant INITIAL_SUPPLY = 1_000_000_000_000_000_000_000_000_000; // 1B tokens with 18 decimals
     address private constant PROTOCOL_WALLET_ADDRESS = 0xebf3334CEE2fb0acDeeAD2E13A0Af302A2e2FF3c;
 
@@ -78,7 +78,7 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
 
     // $LOTRY token used for trading
     address public lotryTokenAddress;
-    
+
     uint256 public lotryRaised; // $LOTRY raised (internal scale, multiply by LOTRY_SCALE for external)
     uint256 public accumulatedPoolFee; // Accumulated fees (internal scale)
     bool public liquidityPulled;
@@ -170,7 +170,7 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
         // calculateSellReturn returns internal scale
         uint256 lotryToReturnGrossInternal = calculateSellReturn(tokenAmount);
         if (lotryToReturnGrossInternal <= 0) revert Ticket__ZeroLotryReturn();
-        
+
         // Convert to external scale to check contract's $LOTRY balance
         uint256 lotryToReturnGrossExternal = lotryToReturnGrossInternal * LOTRY_SCALE;
         IERC20 lotryToken = IERC20(lotryTokenAddress);
@@ -238,11 +238,7 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
     }
 
     // amounts are in external $LOTRY scale (actual token amounts)
-    function pullLiquidity(address[] calldata wallets, uint256[] calldata amounts)
-        public
-        onlyOwner
-        nonReentrant
-    {
+    function pullLiquidity(address[] calldata wallets, uint256[] calldata amounts) public onlyOwner nonReentrant {
         if (liquidityPulled) revert Ticket__LiquidityAlreadyPulled();
         if (lotryTokenAddress == address(0)) revert Ticket__NoLotryTokenSet();
         liquidityPulled = true;
@@ -308,13 +304,13 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
         accumulatedPoolFee += amountInternal;
     }
 
-    // Function to send minted tokens to staking contract (owner only)
-    function sendToStaking(address stakeContract, uint256 amount) external onlyOwner nonReentrant {
-        if (stakeContract == address(0)) revert Ticket__InvalidStakeAddress();
+    // Function to send minted tokens to owner wallet (owner only) to deposit to staking contract
+    function sendToStaking(address owner, uint256 amount) external onlyOwner nonReentrant {
+        ///if (stakeContract == address(0)) revert Ticket__InvalidStakeAddress();
         if (amount == 0) revert Ticket__InvalidStakeAmount();
         if (amount > balanceOf(address(this))) revert Ticket__InsufficientTokenReserves();
 
-        _transfer(address(this), stakeContract, amount);
+        _transfer(address(this), owner, amount);
     }
 
     // Function to get the balance of reward tokens in the pot
@@ -344,4 +340,3 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
         return calculateCurrentPrice() * LOTRY_SCALE;
     }
 }
-
