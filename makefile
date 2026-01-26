@@ -1,4 +1,4 @@
-.PHONY: help install build test deploy launchpad vrf test-vrf verify-launchpad verify-vrf launch-token verify-token clean coverage env-setup wallet-import wallet-list check-env
+.PHONY: help install build test deploy launchpad vrf test-vrf verify-launchpad verify-vrf verify-staking deploy-staking launch-token verify-token clean coverage env-setup wallet-import wallet-list check-env
 
 # Default target
 .DEFAULT_GOAL := help
@@ -19,6 +19,7 @@ ETHERSCAN_API_KEY ?= $(shell echo $$ETHERSCAN_API_KEY)
 # Contract addresses for verification
 LAUNCHPAD_CA ?= $(shell echo $$LAUNCHPAD_CA)
 VRF_CA ?= $(shell echo $$VRF_CA)
+STAKING_CA ?= $(shell echo $$STAKING_CA)
 VRF_COORDINATOR ?= $(shell echo $$VRF_COORDINATOR)
 SUBSCRIPTION_ID ?= $(shell echo $$SUBSCRIPTION_ID)
 KEY_HASH ?= $(shell echo $$KEY_HASH)
@@ -144,10 +145,24 @@ deploy-vrf: check-env ## Deploy VRF (Random Wallet Picker) contract
 		--rpc-url $(RPC_URL) \
 		--account $(WALLET_NAME) \
 		--sender $(WALLET_ADDR) \
-		--broadcast \
-		--verify $(VERBOSITY)
+		--broadcast $(VERBOSITY)
 	@echo "$(GREEN)✅ VRF deployment complete!$(NC)"
 	@echo "$(YELLOW)⚠️  Remember to add the deployed contract as a consumer to your VRF subscription$(NC)"
+
+deploy-staking: check-env ## Deploy LotryStaking contract
+	@echo "$(BLUE)🏦 Deploying LotryStaking contract...$(NC)"
+	@echo "$(YELLOW)   Network: $(TARGET_ENV)$(NC)"
+	@echo "$(YELLOW)   Wallet: $(WALLET_NAME)$(NC)"
+	@echo "$(YELLOW)   Sender: $(WALLET_ADDR)$(NC)"
+	@echo "$(YELLOW)   RPC: $(RPC_URL)$(NC)"
+	forge script script/DeployLotryStaking.s.sol:DeployLotryStaking \
+		--rpc-url $(RPC_URL) \
+		--account $(WALLET_NAME) \
+		--sender $(WALLET_ADDR) \
+		--broadcast \
+		--verify $(VERBOSITY)
+	@echo "$(GREEN)✅ LotryStaking deployment complete!$(NC)"
+	@echo "$(YELLOW)ℹ️  Remember to call setStakeToken() to set the staking token$(NC)"
 
 ##@ Contract Verification
 
@@ -233,6 +248,41 @@ verify-vrf: check-env ## Verify RandomWalletPicker contract
 		contracts/RandomWalletPicker.sol:RandomWalletPicker \
 		--etherscan-api-key $(ETHERSCAN_API_KEY)
 	@echo "$(GREEN)✅ RandomWalletPicker contract verified!$(NC)"
+
+verify-staking: check-env ## Verify LotryStaking contract (usage: make verify-staking STAKING_CA=0x...)
+	@if [ -z "$(STAKING_CA)" ]; then \
+		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
+		echo "   Usage: make verify-staking STAKING_CA=0x..."; \
+		echo "   Or add to your .env file: $(YELLOW)STAKING_CA=0x...$(NC)"; \
+		exit 1; \
+	fi
+	@if [ -z "$(ETHERSCAN_API_KEY)" ]; then \
+		echo "$(RED)❌ ETHERSCAN_API_KEY not set!$(NC)"; \
+		echo "   Please add to your .env file:"; \
+		echo "   $(YELLOW)ETHERSCAN_API_KEY=your_api_key$(NC)"; \
+		exit 1; \
+	fi
+	@if [ -z "$(CHAIN_ID)" ]; then \
+		echo "$(RED)❌ CHAIN_ID not set!$(NC)"; \
+		echo "   Please add to your .env file:"; \
+		echo "   $(YELLOW)CHAIN_ID=8453$(NC) (for Base) or $(YELLOW)CHAIN_ID=84532$(NC) (for Base Sepolia)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)✓ Verifying LotryStaking contract...$(NC)"
+	@echo "$(YELLOW)   Contract: $(STAKING_CA)$(NC)"
+	@echo "$(YELLOW)   Owner: $(WALLET_ADDR)$(NC)"
+	@echo "$(YELLOW)   Chain ID: $(CHAIN_ID)$(NC)"
+	@CONSTRUCTOR_ARGS=$$(cast abi-encode "constructor(address)" $(WALLET_ADDR)); \
+	forge verify-contract \
+		--chain-id $(CHAIN_ID) \
+		--constructor-args $$CONSTRUCTOR_ARGS \
+		--compiler-version 0.8.20 \
+		--num-of-optimizations 200 \
+		--watch \
+		$(STAKING_CA) \
+		contracts/LotryStaking.sol:LotryStaking \
+		--etherscan-api-key $(ETHERSCAN_API_KEY)
+	@echo "$(GREEN)✅ LotryStaking contract verified!$(NC)"
 
 ##@ VRF Operations
 
@@ -553,5 +603,5 @@ check-lotry-raised: check-env ## Check total LOTRY raised (usage: make check-lot
 setup: install build test ## Install, build, and test all contracts
 	@echo "$(GREEN)✅ Project setup complete!$(NC)"
 
-deploy-all: deploy-launchpad deploy-vrf ## Deploy both Launchpad and VRF contracts
+deploy-all: deploy-launchpad deploy-vrf deploy-staking ## Deploy Launchpad, VRF, and Staking contracts
 	@echo "$(GREEN)✅ All deployments complete!$(NC)"

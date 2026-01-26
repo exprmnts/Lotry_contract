@@ -1,21 +1,16 @@
-// script/DeployLotryStaking.s.sol
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "forge-std/Script.sol";
-import "../contracts/LotryStaking.sol";
+import {Script, console2} from "forge-std/Script.sol";
+import {LotryStaking} from "../contracts/LotryStaking.sol";
 
 contract DeployLotryStaking is Script {
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
-        address owner = vm.addr(deployerPrivateKey);
+        vm.startBroadcast();
 
-        vm.startBroadcast(deployerPrivateKey);
-
-        LotryStaking staking = new LotryStaking(owner);
-
-        console.log("LotryStaking deployed at:", address(staking));
-        console.log("Owner:", owner);
+        LotryStaking staking = new LotryStaking(msg.sender);
+        console2.log("LotryStaking deployed at", address(staking));
+        console2.log("Owner:", msg.sender);
 
         vm.stopBroadcast();
     }
