@@ -62,10 +62,10 @@ contract LotryTicket is Ownable, ERC20, ReentrancyGuard {
     uint256 private constant TAX_DENOMINATOR = 100;
 
     // Bonding curve constants derived from Python calculator
-    // Virtual tokens (V_T): 66,666,666.666667 tokens (with 18 decimals)
-    uint256 private constant VIRTUAL_TOKEN_RESERVE = 66_666_666_666667000000000000; // ~66.67M tokens
-    // Virtual $LOTRY (V_E): internal 1.333333333333 (with 18 decimals)
-    uint256 private constant VIRTUAL_LOTRY_RESERVE = 1_333333333333000000; // ~1.333... $LOTRY (internal scale)
+    // Virtual tokens (V_T): 50,000,000.000000 tokens (with 18 decimals)
+    uint256 private constant VIRTUAL_TOKEN_RESERVE = 50_000_000_000000000000000000; // 50M tokens
+    // Virtual $LOTRY (V_E): internal 0.164546666667 (with 18 decimals)
+    uint256 private constant VIRTUAL_LOTRY_RESERVE = 164546666667000000; // ~0.1645... $LOTRY (internal scale)
     // $LOTRY scale factor: 1e10 (external $LOTRY = internal * LOTRY_SCALE)
     // When user sends X $LOTRY tokens, we divide by LOTRY_SCALE to get internal units
     // When contract sends Y internal units, we multiply by LOTRY_SCALE to get $LOTRY tokens
