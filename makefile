@@ -29,6 +29,13 @@ TOKEN_CA ?= $(shell echo $$TOKEN_CA)
 TOKEN_NAME ?= $(shell echo $$TOKEN_NAME)
 TOKEN_SYMBOL ?= $(shell echo $$TOKEN_SYMBOL)
 
+# LotryStaking contract parameters
+STAKE_TOKEN ?= $(shell echo $$STAKE_TOKEN)
+DAILY_REWARD_TOKEN ?= $(shell echo $$DAILY_REWARD_TOKEN) # daily lotry ticket address
+DAILY_STAKE_REWARD_TOKEN_DEPOSIT_AMOUNT ?= $(shell echo $$DAILY_STAKE_REWARD_TOKEN_DEPOSIT_AMOUNT)
+DAILY_CLAIM_REWARD_TOKEN_DEPOSIT_AMOUNT ?= $(shell echo $$DAILY_CLAIM_REWARD_TOKEN_DEPOSIT_AMOUNT)
+DAILY_CLAIM_REWARD_CLAIMABLE_AMOUNT ?= $(shell echo $$DAILY_CLAIM_REWARD_CLAIMABLE_AMOUNT)
+
 # Set WALLET_NAME based on TARGET_ENV
 ifeq ($(TARGET_ENV),base)
 WALLET_NAME ?= baseWallet
@@ -597,6 +604,118 @@ check-lotry-raised: check-env ## Check total LOTRY raised (usage: make check-lot
 	formatted=$$(cast --from-wei $$result); \
 	echo "$(GREEN)   Raw: $$result wei$(NC)"; \
 	echo "$(WHITE)   Formatted: $$formatted LOTRY$(NC)"
+
+##@ LotryStaking Contract Operations
+
+set-stake-token: check-env ## Set the staking token address (usage: make set-stake-token)
+	@if [ -z "$(STAKING_CA)" ]; then \
+		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
+		echo "   Set in .env or: export STAKING_CA=0x..."; \
+		exit 1; \
+	fi
+	@if [ -z "$(STAKE_TOKEN)" ]; then \
+		echo "$(RED)❌ STAKE_TOKEN not set!$(NC)"; \
+		echo "   Set in .env or: export STAKE_TOKEN=0x..."; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)🎫 Setting stake token address...$(NC)"
+	@echo "$(YELLOW)   Staking Contract: $(STAKING_CA)$(NC)"
+	@echo "$(YELLOW)   Stake Token: $(STAKE_TOKEN)$(NC)"
+	@cast send $(STAKING_CA) "setStakeToken(address)" $(STAKE_TOKEN) \
+		--rpc-url $(RPC_URL) \
+		--account $(WALLET_NAME)
+	@echo "$(GREEN)✅ Stake token address set!$(NC)"
+
+set-daily-stake-rewards: check-env ## Set daily staking reward and deposit tokens (usage: make set-daily-stake-rewards)
+	@if [ -z "$(STAKING_CA)" ]; then \
+		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
+		echo "   Set in .env or: export STAKING_CA=0x..."; \
+		exit 1; \
+	fi
+	@if [ -z "$(DAILY_REWARD_TOKEN)" ]; then \
+		echo "$(RED)❌ DAILY_REWARD_TOKEN not set!$(NC)"; \
+		echo "   Set in .env or: export DAILY_REWARD_TOKEN=0x..."; \
+		exit 1; \
+	fi
+	@if [ -z "$(DAILY_STAKE_REWARD_TOKEN_DEPOSIT_AMOUNT)" ]; then \
+		echo "$(RED)❌ DAILY_STAKE_REWARD_TOKEN_DEPOSIT_AMOUNT not set!$(NC)"; \
+		echo "   Set in .env or: export DAILY_STAKE_REWARD_TOKEN_DEPOSIT_AMOUNT=500"; \
+		echo "   Example: 500 for 500 tokens (automatically multiplied by 1e18)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)🎁 Setting daily staking reward...$(NC)"
+	@echo "$(YELLOW)   Staking Contract: $(STAKING_CA)$(NC)"
+	@echo "$(YELLOW)   Reward Token: $(DAILY_REWARD_TOKEN)$(NC)"
+	@echo "$(YELLOW)   Amount: $(DAILY_STAKE_REWARD_TOKEN_DEPOSIT_AMOUNT) tokens$(NC)"
+	@echo "$(YELLOW)   Step 1: Approving tokens...$(NC)"
+	@cast send $(DAILY_REWARD_TOKEN) "approve(address,uint256)" $(STAKING_CA) \
+		$(shell echo "$(DAILY_STAKE_REWARD_TOKEN_DEPOSIT_AMOUNT) * 1000000000000000000" | bc) \
+		--rpc-url $(RPC_URL) \
+		--account $(WALLET_NAME)
+	@echo "$(YELLOW)   Step 2: Setting daily reward...$(NC)"
+	@cast send $(STAKING_CA) "setDailyReward(address,uint256)" \
+		$(DAILY_REWARD_TOKEN) \
+		$(shell echo "$(DAILY_STAKE_REWARD_TOKEN_DEPOSIT_AMOUNT) * 1000000000000000000" | bc) \
+		--rpc-url $(RPC_URL) \
+		--account $(WALLET_NAME)
+	@echo "$(GREEN)✅ Daily staking reward set!$(NC)"
+
+
+set-daily-claimable-token-amount: check-env ## Set daily free claimable token amount (usage: make set-daily-claimable-token-amount)
+	@if [ -z "$(STAKING_CA)" ]; then \
+		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
+		echo "   Set in .env or: export STAKING_CA=0x..."; \
+		exit 1; \
+	fi
+	@if [ -z "$(DAILY_CLAIM_REWARD_CLAIMABLE_AMOUNT)" ]; then \
+		echo "$(RED)❌ DAILY_CLAIM_REWARD_CLAIMABLE_AMOUNT not set!$(NC)"; \
+		echo "   Set in .env or: export DAILY_CLAIM_REWARD_CLAIMABLE_AMOUNT=100"; \
+		echo "   Example: 100 for 100 tokens per address (automatically multiplied by 1e18)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)🎁 Setting daily claimable token amount...$(NC)"
+	@echo "$(YELLOW)   Staking Contract: $(STAKING_CA)$(NC)"
+	@echo "$(YELLOW)   Amount per claim: $(DAILY_CLAIM_REWARD_CLAIMABLE_AMOUNT) tokens$(NC)"
+	@echo "$(YELLOW)   ⚠️  Note: This resets the daily claim pool to 0$(NC)"
+	@cast send $(STAKING_CA) "setDailyClaim(uint256)" \
+		$(shell echo "$(DAILY_CLAIM_REWARD_CLAIMABLE_AMOUNT) * 1000000000000000000" | bc) \
+		--rpc-url $(RPC_URL) \
+		--account $(WALLET_NAME)
+	@echo "$(GREEN)✅ Daily claimable token amount set!$(NC)"
+	@echo "$(YELLOW)ℹ️  Remember to deposit tokens using: make deposit-daily-claim-reward-tokens$(NC)"
+
+deposit-daily-claim-reward-tokens: check-env ## Deposit tokens for daily free claims (usage: make deposit-daily-claim-reward-tokens)
+	@if [ -z "$(STAKING_CA)" ]; then \
+		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
+		echo "   Set in .env or: export STAKING_CA=0x..."; \
+		exit 1; \
+	fi
+	@if [ -z "$(DAILY_REWARD_TOKEN)" ]; then \
+		echo "$(RED)❌ DAILY_REWARD_TOKEN not set!$(NC)"; \
+		echo "   Set in .env or: export DAILY_REWARD_TOKEN=0x..."; \
+		exit 1; \
+	fi
+	@if [ -z "$(DAILY_CLAIM_REWARD_TOKEN_DEPOSIT_AMOUNT)" ]; then \
+		echo "$(RED)❌ DAILY_CLAIM_REWARD_TOKEN_DEPOSIT_AMOUNT not set!$(NC)"; \
+		echo "   Set in .env or: export DAILY_CLAIM_REWARD_TOKEN_DEPOSIT_AMOUNT=1000"; \
+		echo "   Example: 1000 for 1000 tokens (automatically multiplied by 1e18)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)💰 Depositing daily claim reward tokens...$(NC)"
+	@echo "$(YELLOW)   Staking Contract: $(STAKING_CA)$(NC)"
+	@echo "$(YELLOW)   Reward Token: $(DAILY_REWARD_TOKEN)$(NC)"
+	@echo "$(YELLOW)   Amount: $(DAILY_CLAIM_REWARD_TOKEN_DEPOSIT_AMOUNT) tokens$(NC)"
+	@echo "$(YELLOW)   Step 1: Approving tokens...$(NC)"
+	@cast send $(DAILY_REWARD_TOKEN) "approve(address,uint256)" $(STAKING_CA) \
+		$(shell echo "$(DAILY_CLAIM_REWARD_TOKEN_DEPOSIT_AMOUNT) * 1000000000000000000" | bc) \
+		--rpc-url $(RPC_URL) \
+		--account $(WALLET_NAME)
+	@echo "$(YELLOW)   Step 2: Depositing tokens...$(NC)"
+	@cast send $(STAKING_CA) "depositDailyClaimTokens(uint256)" \
+		$(shell echo "$(DAILY_CLAIM_REWARD_TOKEN_DEPOSIT_AMOUNT) * 1000000000000000000" | bc) \
+		--rpc-url $(RPC_URL) \
+		--account $(WALLET_NAME)
+	@echo "$(GREEN)✅ Daily claim reward tokens deposited!$(NC)"
 
 ##@ Quick Commands
 
