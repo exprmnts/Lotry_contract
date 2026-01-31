@@ -706,8 +706,7 @@ deposit-daily-claim-reward-tokens: check-env ## Deposit tokens for daily free cl
 	@echo "$(YELLOW)   Reward Token: $(DAILY_REWARD_TOKEN)$(NC)"
 	@echo "$(YELLOW)   Amount: $(DAILY_CLAIM_REWARD_TOKEN_DEPOSIT_AMOUNT) tokens$(NC)"
 	@echo "$(YELLOW)   Step 1: Approving tokens...$(NC)"
-	@cast send $(DAILY_REWARD_TOKEN) "approve(address,uint256)" $(STAKING_CA) \
-		$(shell echo "$(DAILY_CLAIM_REWARD_TOKEN_DEPOSIT_AMOUNT) * 1000000000000000000" | bc) \
+	@cast send $(DAILY_REWARD_TOKEN) "approve(address,uint256)" $(STAKING_CA) $(shell cast max-uint)\
 		--rpc-url $(RPC_URL) \
 		--account $(WALLET_NAME)
 	@echo "$(YELLOW)   Step 2: Depositing tokens...$(NC)"
