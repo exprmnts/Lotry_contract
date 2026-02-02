@@ -12,7 +12,49 @@
     },
     {
         "type": "function",
-        "name": "UNLOCK_PERIOD",
+        "name": "getAllStakedAmounts",
+        "inputs": [],
+        "outputs": [
+            {
+                "name": "_stakers",
+                "type": "address[]",
+                "internalType": "address[]"
+            },
+            {
+                "name": "_amounts",
+                "type": "uint256[]",
+                "internalType": "uint256[]"
+            },
+            {
+                "name": "_totalStaked",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
+        "name": "getStakeAmount",
+        "inputs": [
+            {
+                "name": "_user",
+                "type": "address",
+                "internalType": "address"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
+        "name": "getStakersCount",
         "inputs": [],
         "outputs": [
             {
@@ -25,34 +67,10 @@
     },
     {
         "type": "function",
-        "name": "calculateReward",
+        "name": "isStaker",
         "inputs": [
-            {
-                "name": "_user",
-                "type": "address",
-                "internalType": "address"
-            },
-            {
-                "name": "_day",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "outputs": [
             {
                 "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "canClaimDaily",
-        "inputs": [
-            {
-                "name": "_user",
                 "type": "address",
                 "internalType": "address"
             }
@@ -62,300 +80,6 @@
                 "name": "",
                 "type": "bool",
                 "internalType": "bool"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "claimDaily",
-        "inputs": [],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
-        "name": "claimReward",
-        "inputs": [
-            {
-                "name": "_day",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
-        "name": "currentDay",
-        "inputs": [],
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "currentDayRewardPool",
-        "inputs": [],
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "currentRewardToken",
-        "inputs": [],
-        "outputs": [
-            {
-                "name": "",
-                "type": "address",
-                "internalType": "contract IERC20"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "dailyClaimAmount",
-        "inputs": [],
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "dailyClaimDay",
-        "inputs": [],
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "dailyClaimPoolBalance",
-        "inputs": [],
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "dailyClaimToken",
-        "inputs": [],
-        "outputs": [
-            {
-                "name": "",
-                "type": "address",
-                "internalType": "contract IERC20"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "dayRewards",
-        "inputs": [
-            {
-                "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "outputs": [
-            {
-                "name": "rewardToken",
-                "type": "address",
-                "internalType": "contract IERC20"
-            },
-            {
-                "name": "rewardAmount",
-                "type": "uint256",
-                "internalType": "uint256"
-            },
-            {
-                "name": "totalStakedSnapshot",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "depositDailyClaimTokens",
-        "inputs": [
-            {
-                "name": "_amount",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
-        "name": "getDailyClaimInfo",
-        "inputs": [],
-        "outputs": [
-            {
-                "name": "token",
-                "type": "address",
-                "internalType": "address"
-            },
-            {
-                "name": "amount",
-                "type": "uint256",
-                "internalType": "uint256"
-            },
-            {
-                "name": "day",
-                "type": "uint256",
-                "internalType": "uint256"
-            },
-            {
-                "name": "availablePool",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "getDayRewardInfo",
-        "inputs": [
-            {
-                "name": "_day",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "outputs": [
-            {
-                "name": "rewardToken",
-                "type": "address",
-                "internalType": "address"
-            },
-            {
-                "name": "rewardAmount",
-                "type": "uint256",
-                "internalType": "uint256"
-            },
-            {
-                "name": "totalStakedSnapshot",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "getStakeInfo",
-        "inputs": [
-            {
-                "name": "_user",
-                "type": "address",
-                "internalType": "address"
-            }
-        ],
-        "outputs": [
-            {
-                "name": "amount",
-                "type": "uint256",
-                "internalType": "uint256"
-            },
-            {
-                "name": "unstakeInitiatedAt",
-                "type": "uint256",
-                "internalType": "uint256"
-            },
-            {
-                "name": "isUnstaking",
-                "type": "bool",
-                "internalType": "bool"
-            },
-            {
-                "name": "unlockTime",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "hasClaimed",
-        "inputs": [
-            {
-                "name": "_user",
-                "type": "address",
-                "internalType": "address"
-            },
-            {
-                "name": "_day",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "outputs": [
-            {
-                "name": "",
-                "type": "bool",
-                "internalType": "bool"
-            }
-        ],
-        "stateMutability": "view"
-    },
-    {
-        "type": "function",
-        "name": "initiateUnstake",
-        "inputs": [],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
-        "name": "lastClaimedDay",
-        "inputs": [
-            {
-                "name": "",
-                "type": "address",
-                "internalType": "address"
-            }
-        ],
-        "outputs": [
-            {
-                "name": "",
-                "type": "uint256",
-                "internalType": "uint256"
             }
         ],
         "stateMutability": "view"
@@ -377,37 +101,6 @@
         "type": "function",
         "name": "renounceOwnership",
         "inputs": [],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
-        "name": "setDailyClaim",
-        "inputs": [
-            {
-                "name": "_amount",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
-        "name": "setDailyReward",
-        "inputs": [
-            {
-                "name": "_rewardToken",
-                "type": "address",
-                "internalType": "address"
-            },
-            {
-                "name": "_amount",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ],
         "outputs": [],
         "stateMutability": "nonpayable"
     },
@@ -452,7 +145,7 @@
     },
     {
         "type": "function",
-        "name": "stakes",
+        "name": "stakedAmount",
         "inputs": [
             {
                 "name": "",
@@ -462,19 +155,28 @@
         ],
         "outputs": [
             {
-                "name": "amount",
+                "name": "",
                 "type": "uint256",
                 "internalType": "uint256"
-            },
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
+        "name": "stakers",
+        "inputs": [
             {
-                "name": "unstakeInitiatedAt",
+                "name": "",
                 "type": "uint256",
                 "internalType": "uint256"
-            },
+            }
+        ],
+        "outputs": [
             {
-                "name": "isUnstaking",
-                "type": "bool",
-                "internalType": "bool"
+                "name": "",
+                "type": "address",
+                "internalType": "address"
             }
         ],
         "stateMutability": "view"
@@ -506,13 +208,6 @@
         "stateMutability": "nonpayable"
     },
     {
-        "type": "function",
-        "name": "unstake",
-        "inputs": [],
-        "outputs": [],
-        "stateMutability": "nonpayable"
-    },
-    {
         "type": "event",
         "name": "OwnershipTransferred",
         "inputs": [
@@ -527,56 +222,6 @@
                 "type": "address",
                 "indexed": true,
                 "internalType": "address"
-            }
-        ],
-        "anonymous": false
-    },
-    {
-        "type": "event",
-        "name": "RewardClaimed",
-        "inputs": [
-            {
-                "name": "user",
-                "type": "address",
-                "indexed": true,
-                "internalType": "address"
-            },
-            {
-                "name": "day",
-                "type": "uint256",
-                "indexed": true,
-                "internalType": "uint256"
-            },
-            {
-                "name": "amount",
-                "type": "uint256",
-                "indexed": false,
-                "internalType": "uint256"
-            }
-        ],
-        "anonymous": false
-    },
-    {
-        "type": "event",
-        "name": "RewardTokenSet",
-        "inputs": [
-            {
-                "name": "day",
-                "type": "uint256",
-                "indexed": true,
-                "internalType": "uint256"
-            },
-            {
-                "name": "token",
-                "type": "address",
-                "indexed": true,
-                "internalType": "address"
-            },
-            {
-                "name": "amount",
-                "type": "uint256",
-                "indexed": false,
-                "internalType": "uint256"
             }
         ],
         "anonymous": false
@@ -612,95 +257,6 @@
             }
         ],
         "anonymous": false
-    },
-    {
-        "type": "event",
-        "name": "UnstakeInitiated",
-        "inputs": [
-            {
-                "name": "user",
-                "type": "address",
-                "indexed": true,
-                "internalType": "address"
-            },
-            {
-                "name": "amount",
-                "type": "uint256",
-                "indexed": false,
-                "internalType": "uint256"
-            },
-            {
-                "name": "unlockTime",
-                "type": "uint256",
-                "indexed": false,
-                "internalType": "uint256"
-            }
-        ],
-        "anonymous": false
-    },
-    {
-        "type": "event",
-        "name": "Unstaked",
-        "inputs": [
-            {
-                "name": "user",
-                "type": "address",
-                "indexed": true,
-                "internalType": "address"
-            },
-            {
-                "name": "amount",
-                "type": "uint256",
-                "indexed": false,
-                "internalType": "uint256"
-            }
-        ],
-        "anonymous": false
-    },
-    {
-        "type": "error",
-        "name": "AlreadyClaimed",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "AlreadyClaimedToday",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "AlreadyUnstaking",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "InsufficientDailyClaimPool",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "InsufficientStake",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "NoDailyClaimAvailable",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "NoRewardForDay",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "NoStakeAtSnapshot",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "NotUnstaking",
-        "inputs": []
     },
     {
         "type": "error",
@@ -739,16 +295,6 @@
                 "internalType": "address"
             }
         ]
-    },
-    {
-        "type": "error",
-        "name": "TransferFailed",
-        "inputs": []
-    },
-    {
-        "type": "error",
-        "name": "UnlockPeriodNotPassed",
-        "inputs": []
     },
     {
         "type": "error",
