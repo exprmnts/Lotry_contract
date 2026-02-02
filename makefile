@@ -1,4 +1,4 @@
-.PHONY: help install build test deploy launchpad vrf test-vrf verify-launchpad verify-vrf verify-staking deploy-staking launch-token verify-token clean coverage env-setup wallet-import wallet-list check-env
+.PHONY: help install build test deploy launchpad vrf test-vrf verify-launchpad verify-vrf verify-staking deploy-staking launch-token verify-token clean coverage env-setup wallet-import wallet-list check-env set-stake-token stake-lotry get-all-staked check-stake-token check-total-staked check-user-stake check-stakers-count check-is-staker
 
 # Default target
 .DEFAULT_GOAL := help
@@ -166,8 +166,7 @@ deploy-staking: check-env ## Deploy LotryStaking contract
 		--rpc-url $(RPC_URL) \
 		--account $(WALLET_NAME) \
 		--sender $(WALLET_ADDR) \
-		--broadcast \
-		--verify $(VERBOSITY)
+		--broadcast $(VERBOSITY)
 	@echo "$(GREEN)✅ LotryStaking deployment complete!$(NC)"
 	@echo "$(YELLOW)ℹ️  Remember to call setStakeToken() to set the staking token$(NC)"
 
@@ -285,6 +284,7 @@ verify-staking: check-env ## Verify LotryStaking contract (usage: make verify-st
 		--constructor-args $$CONSTRUCTOR_ARGS \
 		--compiler-version 0.8.20 \
 		--num-of-optimizations 200 \
+		--via-ir \
 		--watch \
 		$(STAKING_CA) \
 		contracts/LotryStaking.sol:LotryStaking \
@@ -604,6 +604,132 @@ check-lotry-raised: check-env ## Check total LOTRY raised (usage: make check-lot
 	formatted=$$(cast --from-wei $$result); \
 	echo "$(GREEN)   Raw: $$result wei$(NC)"; \
 	echo "$(WHITE)   Formatted: $$formatted LOTRY$(NC)"
+
+##@ LotryStaking Contract Operations
+
+set-stake-token: check-env ## Set the staking token address (usage: make set-stake-token STAKING_CA=0x... STAKE_TOKEN=0x...)
+	@if [ -z "$(STAKING_CA)" ]; then \
+		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
+		echo "   Usage: make set-stake-token STAKING_CA=0x... STAKE_TOKEN=0x..."; \
+		exit 1; \
+	fi
+	@if [ -z "$(STAKE_TOKEN)" ]; then \
+		echo "$(RED)❌ STAKE_TOKEN not set!$(NC)"; \
+		echo "   Usage: make set-stake-token STAKING_CA=0x... STAKE_TOKEN=0x..."; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)🏦 Setting stake token address...$(NC)"
+	@echo "$(YELLOW)   Staking Contract: $(STAKING_CA)$(NC)"
+	@echo "$(YELLOW)   Stake Token: $(STAKE_TOKEN)$(NC)"
+	cast send $(STAKING_CA) "setStakeToken(address)" $(STAKE_TOKEN) --rpc-url $(RPC_URL) --account $(WALLET_NAME)
+	@echo "$(GREEN)✅ Stake token address set!$(NC)"
+
+stake-lotry: check-env ## Stake LOTRY tokens (usage: make stake-lotry STAKING_CA=0x... STAKE_TOKEN=0x... AMOUNT=1000)
+	@if [ -z "$(STAKING_CA)" ]; then \
+		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
+		echo "   Usage: make stake-lotry STAKING_CA=0x... STAKE_TOKEN=0x... AMOUNT=1000"; \
+		exit 1; \
+	fi
+	@if [ -z "$(STAKE_TOKEN)" ]; then \
+		echo "$(RED)❌ STAKE_TOKEN not set!$(NC)"; \
+		echo "   Usage: make stake-lotry STAKING_CA=0x... STAKE_TOKEN=0x... AMOUNT=1000"; \
+		exit 1; \
+	fi
+	@if [ -z "$(AMOUNT)" ]; then \
+		echo "$(RED)❌ AMOUNT not set!$(NC)"; \
+		echo "   Usage: make stake-lotry STAKING_CA=0x... STAKE_TOKEN=0x... AMOUNT=1000"; \
+		echo "   Example: AMOUNT=1000 for 1000 tokens (automatically multiplied by 1e18)"; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)🏦 Staking LOTRY tokens...$(NC)"
+	@echo "$(YELLOW)   Amount: $(AMOUNT) tokens$(NC)"
+	@echo "$(YELLOW)   Step 1: Approving tokens...$(NC)"
+	cast send $(STAKE_TOKEN) "approve(address,uint256)" $(STAKING_CA) $(shell echo "$(AMOUNT) * 1000000000000000000" | bc) --rpc-url $(RPC_URL) --account $(WALLET_NAME)
+	@echo "$(YELLOW)   Step 2: Staking tokens...$(NC)"
+	cast send $(STAKING_CA) "stake(uint256)" $(shell echo "$(AMOUNT) * 1000000000000000000" | bc) --rpc-url $(RPC_URL) --account $(WALLET_NAME)
+	@echo "$(GREEN)✅ LOTRY tokens staked!$(NC)"
+
+##@ LotryStaking Contract Views
+
+get-all-staked: check-env ## Get all stakers and their staked amounts (owner only) (usage: make get-all-staked STAKING_CA=0x...)
+	@if [ -z "$(STAKING_CA)" ]; then \
+		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
+		echo "   Usage: make get-all-staked STAKING_CA=0x..."; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)🔍 Getting all staked amounts...$(NC)"
+	@echo "$(YELLOW)   Contract: $(STAKING_CA)$(NC)"
+	@echo "$(YELLOW)   Caller (owner): $(WALLET_ADDR)$(NC)"
+	@echo ""
+	cast call $(STAKING_CA) "getAllStakedAmounts()(address[],uint256[],uint256)" --from $(WALLET_ADDR) --rpc-url $(RPC_URL)
+
+check-stake-token: check-env ## Check stake token address (usage: make check-stake-token STAKING_CA=0x...)
+	@if [ -z "$(STAKING_CA)" ]; then \
+		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
+		echo "   Usage: make check-stake-token STAKING_CA=0x..."; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)🔍 Checking stake token address...$(NC)"
+	@echo "$(YELLOW)   Contract: $(STAKING_CA)$(NC)"
+	cast call $(STAKING_CA) "stakeToken()(address)" --rpc-url $(RPC_URL)
+
+check-total-staked: check-env ## Check total staked amount (usage: make check-total-staked STAKING_CA=0x...)
+	@if [ -z "$(STAKING_CA)" ]; then \
+		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
+		echo "   Usage: make check-total-staked STAKING_CA=0x..."; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)🔍 Checking total staked...$(NC)"
+	@echo "$(YELLOW)   Contract: $(STAKING_CA)$(NC)"
+	@result=$$(cast call $(STAKING_CA) "totalStaked()(uint256)" --rpc-url $(RPC_URL) | sed 's/ \[.*\]//'); \
+	formatted=$$(cast --from-wei $$result); \
+	echo "$(GREEN)   Raw: $$result wei$(NC)"; \
+	echo "$(WHITE)   Formatted: $$formatted LOTRY$(NC)"
+
+check-user-stake: check-env ## Check user's staked amount (usage: make check-user-stake STAKING_CA=0x... USER_ADDR=0x...)
+	@if [ -z "$(STAKING_CA)" ]; then \
+		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
+		echo "   Usage: make check-user-stake STAKING_CA=0x... USER_ADDR=0x..."; \
+		exit 1; \
+	fi
+	@if [ -z "$(USER_ADDR)" ]; then \
+		echo "$(RED)❌ USER_ADDR not set!$(NC)"; \
+		echo "   Usage: make check-user-stake STAKING_CA=0x... USER_ADDR=0x..."; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)🔍 Checking user stake amount...$(NC)"
+	@echo "$(YELLOW)   Contract: $(STAKING_CA)$(NC)"
+	@echo "$(YELLOW)   User: $(USER_ADDR)$(NC)"
+	@result=$$(cast call $(STAKING_CA) "getStakeAmount(address)(uint256)" $(USER_ADDR) --rpc-url $(RPC_URL) | sed 's/ \[.*\]//'); \
+	formatted=$$(cast --from-wei $$result); \
+	echo "$(GREEN)   Raw: $$result wei$(NC)"; \
+	echo "$(WHITE)   Formatted: $$formatted LOTRY$(NC)"
+
+check-stakers-count: check-env ## Check total number of stakers (usage: make check-stakers-count STAKING_CA=0x...)
+	@if [ -z "$(STAKING_CA)" ]; then \
+		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
+		echo "   Usage: make check-stakers-count STAKING_CA=0x..."; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)🔍 Checking stakers count...$(NC)"
+	@echo "$(YELLOW)   Contract: $(STAKING_CA)$(NC)"
+	cast call $(STAKING_CA) "getStakersCount()(uint256)" --rpc-url $(RPC_URL)
+
+check-is-staker: check-env ## Check if address is a staker (usage: make check-is-staker STAKING_CA=0x... USER_ADDR=0x...)
+	@if [ -z "$(STAKING_CA)" ]; then \
+		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
+		echo "   Usage: make check-is-staker STAKING_CA=0x... USER_ADDR=0x..."; \
+		exit 1; \
+	fi
+	@if [ -z "$(USER_ADDR)" ]; then \
+		echo "$(RED)❌ USER_ADDR not set!$(NC)"; \
+		echo "   Usage: make check-is-staker STAKING_CA=0x... USER_ADDR=0x..."; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)🔍 Checking if user is a staker...$(NC)"
+	@echo "$(YELLOW)   Contract: $(STAKING_CA)$(NC)"
+	@echo "$(YELLOW)   User: $(USER_ADDR)$(NC)"
+	cast call $(STAKING_CA) "isStaker(address)(bool)" $(USER_ADDR) --rpc-url $(RPC_URL)
 
 ##@ Quick Commands
 
