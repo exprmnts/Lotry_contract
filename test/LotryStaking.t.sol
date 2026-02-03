@@ -29,6 +29,7 @@ contract LotryStakingTest is Test {
     // Events (mirrored from LotryStaking for testing)
     event StakeTokenSet(address indexed token);
     event Staked(address indexed user, uint256 amount);
+    event AdminWithdraw(address indexed admin, uint256 amount);
 
     function setUp() public {
         // Deploy contracts
@@ -287,6 +288,86 @@ contract LotryStakingTest is Test {
         assertEq(_amounts[0], STAKE_AMOUNT);
         assertEq(_amounts[1], STAKE_AMOUNT * 2);
         assertEq(_amounts[2], STAKE_AMOUNT * 3);
+    }
+
+    // ============ withdrawAll Tests ============
+
+    function testWithdrawAllOnlyOwner() public {
+        // User1 stakes first
+        vm.startPrank(user1);
+        lotryToken.approve(address(staking), STAKE_AMOUNT);
+        staking.stake(STAKE_AMOUNT);
+        vm.stopPrank();
+
+        // Non-owner tries to withdraw
+        vm.prank(user1);
+        vm.expectRevert();
+        staking.withdrawAll();
+    }
+
+    function testWithdrawAllRevertsWhenEmpty() public {
+        vm.prank(owner);
+        vm.expectRevert(LotryStaking.ZeroAmount.selector);
+        staking.withdrawAll();
+    }
+
+    function testWithdrawAll() public {
+        // Multiple users stake
+        vm.startPrank(user1);
+        lotryToken.approve(address(staking), STAKE_AMOUNT);
+        staking.stake(STAKE_AMOUNT);
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        lotryToken.approve(address(staking), STAKE_AMOUNT * 2);
+        staking.stake(STAKE_AMOUNT * 2);
+        vm.stopPrank();
+
+        uint256 totalStakedBefore = staking.totalStaked();
+        uint256 ownerBalanceBefore = lotryToken.balanceOf(owner);
+
+        // Owner withdraws all
+        vm.prank(owner);
+        staking.withdrawAll();
+
+        // Verify tokens transferred to owner
+        assertEq(lotryToken.balanceOf(owner), ownerBalanceBefore + totalStakedBefore);
+
+        // Verify state reset
+        assertEq(staking.totalStaked(), 0);
+        assertEq(staking.stakedAmount(user1), 0);
+        assertEq(staking.stakedAmount(user2), 0);
+
+        // Contract should have 0 balance
+        assertEq(lotryToken.balanceOf(address(staking)), 0);
+    }
+
+    function testWithdrawAllEmitsEvent() public {
+        vm.startPrank(user1);
+        lotryToken.approve(address(staking), STAKE_AMOUNT);
+        staking.stake(STAKE_AMOUNT);
+        vm.stopPrank();
+
+        vm.prank(owner);
+        vm.expectEmit(true, false, false, true);
+        emit AdminWithdraw(owner, STAKE_AMOUNT);
+        staking.withdrawAll();
+    }
+
+    function testWithdrawAllPreservesStakersList() public {
+        // Stake first
+        vm.startPrank(user1);
+        lotryToken.approve(address(staking), STAKE_AMOUNT);
+        staking.stake(STAKE_AMOUNT);
+        vm.stopPrank();
+
+        // Withdraw all
+        vm.prank(owner);
+        staking.withdrawAll();
+
+        // Staker list should still contain user1 (isStaker remains true)
+        assertTrue(staking.isStaker(user1));
+        assertEq(staking.getStakersCount(), 1);
     }
 
     // ============ Fuzz Tests ============
