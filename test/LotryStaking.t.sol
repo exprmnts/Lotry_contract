@@ -18,8 +18,6 @@ contract MockERC20 is ERC20 {
 contract LotryStakingTest is Test {
     LotryStaking public staking;
     MockERC20 public lotryToken;
-    MockERC20 public rewardToken1;
-    MockERC20 public rewardToken2;
 
     address public owner = address(1);
     address public user1 = address(2);
@@ -27,7 +25,11 @@ contract LotryStakingTest is Test {
     address public user3 = address(4);
 
     uint256 constant STAKE_AMOUNT = 1000 * 10 ** 18;
-    uint256 constant REWARD_AMOUNT = 500 * 10 ** 18;
+
+    // Events (mirrored from LotryStaking for testing)
+    event StakeTokenSet(address indexed token);
+    event Staked(address indexed user, uint256 amount);
+    event AdminWithdraw(address indexed admin, uint256 amount);
 
     function setUp() public {
         // Deploy contracts
@@ -35,25 +37,32 @@ contract LotryStakingTest is Test {
         staking = new LotryStaking(owner);
 
         lotryToken = new MockERC20("LOTRY", "LOTRY");
-        rewardToken1 = new MockERC20("Reward1", "RWD1");
-        rewardToken2 = new MockERC20("Reward2", "RWD2");
 
         // Distribute tokens
         lotryToken.transfer(user1, 10000 * 10 ** 18);
         lotryToken.transfer(user2, 10000 * 10 ** 18);
         lotryToken.transfer(user3, 10000 * 10 ** 18);
 
-        rewardToken1.transfer(owner, 10000 * 10 ** 18);
-        rewardToken2.transfer(owner, 10000 * 10 ** 18);
-
         // Set stake token
         vm.prank(owner);
         staking.setStakeToken(address(lotryToken));
     }
 
+    // ============ Constructor Tests ============
+
+    function testConstructorSetsOwner() public view {
+        assertEq(staking.owner(), owner);
+    }
+
+    function testConstructorRejectsZeroAddress() public {
+        // OpenZeppelin's Ownable throws OwnableInvalidOwner before our custom check
+        vm.expectRevert(abi.encodeWithSignature("OwnableInvalidOwner(address)", address(0)));
+        new LotryStaking(address(0));
+    }
+
     // ============ Setup Tests ============
 
-    function testSetStakeToken() public {
+    function testSetStakeToken() public view {
         assertEq(address(staking.stakeToken()), address(lotryToken));
     }
 
@@ -69,6 +78,14 @@ contract LotryStakingTest is Test {
         staking.setStakeToken(address(lotryToken));
     }
 
+    function testSetStakeTokenEmitsEvent() public {
+        LotryStaking newStaking = new LotryStaking(owner);
+        vm.prank(owner);
+        vm.expectEmit(true, false, false, false);
+        emit StakeTokenSet(address(lotryToken));
+        newStaking.setStakeToken(address(lotryToken));
+    }
+
     // ============ Staking Tests ============
 
     function testStake() public {
@@ -77,9 +94,18 @@ contract LotryStakingTest is Test {
         staking.stake(STAKE_AMOUNT);
         vm.stopPrank();
 
-        (uint256 amount,,,) = staking.getStakeInfo(user1);
-        assertEq(amount, STAKE_AMOUNT);
+        assertEq(staking.getStakeAmount(user1), STAKE_AMOUNT);
         assertEq(staking.totalStaked(), STAKE_AMOUNT);
+    }
+
+    function testStakeEmitsEvent() public {
+        vm.startPrank(user1);
+        lotryToken.approve(address(staking), STAKE_AMOUNT);
+
+        vm.expectEmit(true, false, false, true);
+        emit Staked(user1, STAKE_AMOUNT);
+        staking.stake(STAKE_AMOUNT);
+        vm.stopPrank();
     }
 
     function testCannotStakeZero() public {
@@ -87,6 +113,15 @@ contract LotryStakingTest is Test {
         lotryToken.approve(address(staking), STAKE_AMOUNT);
         vm.expectRevert(LotryStaking.ZeroAmount.selector);
         staking.stake(0);
+        vm.stopPrank();
+    }
+
+    function testCannotStakeWithoutStakeTokenSet() public {
+        LotryStaking newStaking = new LotryStaking(owner);
+
+        vm.startPrank(user1);
+        vm.expectRevert(LotryStaking.ZeroAddress.selector);
+        newStaking.stake(STAKE_AMOUNT);
         vm.stopPrank();
     }
 
@@ -104,201 +139,123 @@ contract LotryStakingTest is Test {
         vm.stopPrank();
 
         assertEq(staking.totalStaked(), STAKE_AMOUNT * 3);
+        assertEq(staking.getStakeAmount(user1), STAKE_AMOUNT);
+        assertEq(staking.getStakeAmount(user2), STAKE_AMOUNT * 2);
     }
 
-    function testCannotStakeWhileUnstaking() public {
-        // Stake first
+    function testUserCanStakeMultipleTimes() public {
         vm.startPrank(user1);
-        lotryToken.approve(address(staking), STAKE_AMOUNT * 2);
+        lotryToken.approve(address(staking), STAKE_AMOUNT * 3);
+
         staking.stake(STAKE_AMOUNT);
+        assertEq(staking.getStakeAmount(user1), STAKE_AMOUNT);
 
-        // Initiate unstake
-        staking.initiateUnstake();
-
-        // Try to stake again
-        vm.expectRevert(LotryStaking.AlreadyUnstaking.selector);
-        staking.stake(STAKE_AMOUNT);
-        vm.stopPrank();
-    }
-
-    // ============ Reward Tests ============
-
-    function testSetDailyReward() public {
-        vm.startPrank(owner);
-        rewardToken1.approve(address(staking), REWARD_AMOUNT);
-        staking.setDailyReward(address(rewardToken1), REWARD_AMOUNT);
-        vm.stopPrank();
-
-        assertEq(staking.currentDay(), 1);
-        assertEq(staking.currentDayRewardPool(), REWARD_AMOUNT);
-
-        (address token, uint256 amount, uint256 snapshot) = staking.getDayRewardInfo(1);
-        assertEq(token, address(rewardToken1));
-        assertEq(amount, REWARD_AMOUNT);
-        assertEq(snapshot, 0); // No stakes yet
-    }
-
-    function testProRataRewardCalculation() public {
-        // User1 stakes 1000
-        vm.startPrank(user1);
-        lotryToken.approve(address(staking), STAKE_AMOUNT);
-        staking.stake(STAKE_AMOUNT);
-        vm.stopPrank();
-
-        // User2 stakes 2000
-        vm.startPrank(user2);
-        lotryToken.approve(address(staking), STAKE_AMOUNT * 2);
         staking.stake(STAKE_AMOUNT * 2);
+        assertEq(staking.getStakeAmount(user1), STAKE_AMOUNT * 3);
         vm.stopPrank();
 
-        // Set daily reward (total staked = 3000)
-        vm.startPrank(owner);
-        rewardToken1.approve(address(staking), REWARD_AMOUNT);
-        staking.setDailyReward(address(rewardToken1), REWARD_AMOUNT);
-        vm.stopPrank();
-
-        // User1 should get 1/3 of rewards
-        uint256 user1Reward = staking.calculateReward(user1, 1);
-        assertEq(user1Reward, REWARD_AMOUNT / 3);
-
-        // User2 should get 2/3 of rewards
-        uint256 user2Reward = staking.calculateReward(user2, 1);
-        assertEq(user2Reward, (REWARD_AMOUNT * 2) / 3);
+        // Should still only be one staker entry
+        assertEq(staking.getStakersCount(), 1);
     }
 
-    function testClaimReward() public {
-        // Setup: User1 stakes
+    function testStakerAddedToListOnlyOnce() public {
+        vm.startPrank(user1);
+        lotryToken.approve(address(staking), STAKE_AMOUNT * 2);
+
+        staking.stake(STAKE_AMOUNT);
+        assertEq(staking.getStakersCount(), 1);
+        assertTrue(staking.isStaker(user1));
+
+        staking.stake(STAKE_AMOUNT);
+        assertEq(staking.getStakersCount(), 1); // Still 1
+        vm.stopPrank();
+    }
+
+    // ============ View Functions Tests ============
+
+    function testGetStakeAmount() public {
         vm.startPrank(user1);
         lotryToken.approve(address(staking), STAKE_AMOUNT);
         staking.stake(STAKE_AMOUNT);
         vm.stopPrank();
 
-        // Set daily reward
-        vm.startPrank(owner);
-        rewardToken1.approve(address(staking), REWARD_AMOUNT);
-        staking.setDailyReward(address(rewardToken1), REWARD_AMOUNT);
+        assertEq(staking.getStakeAmount(user1), STAKE_AMOUNT);
+        assertEq(staking.getStakeAmount(user2), 0); // Non-staker
+    }
+
+    function testGetStakersCount() public {
+        assertEq(staking.getStakersCount(), 0);
+
+        vm.startPrank(user1);
+        lotryToken.approve(address(staking), STAKE_AMOUNT);
+        staking.stake(STAKE_AMOUNT);
         vm.stopPrank();
 
-        // Claim reward
-        uint256 balanceBefore = rewardToken1.balanceOf(user1);
+        assertEq(staking.getStakersCount(), 1);
+
+        vm.startPrank(user2);
+        lotryToken.approve(address(staking), STAKE_AMOUNT);
+        staking.stake(STAKE_AMOUNT);
+        vm.stopPrank();
+
+        assertEq(staking.getStakersCount(), 2);
+    }
+
+    function testStakersArray() public {
+        vm.startPrank(user1);
+        lotryToken.approve(address(staking), STAKE_AMOUNT);
+        staking.stake(STAKE_AMOUNT);
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        lotryToken.approve(address(staking), STAKE_AMOUNT);
+        staking.stake(STAKE_AMOUNT);
+        vm.stopPrank();
+
+        assertEq(staking.stakers(0), user1);
+        assertEq(staking.stakers(1), user2);
+    }
+
+    function testIsStaker() public {
+        assertFalse(staking.isStaker(user1));
+
+        vm.startPrank(user1);
+        lotryToken.approve(address(staking), STAKE_AMOUNT);
+        staking.stake(STAKE_AMOUNT);
+        vm.stopPrank();
+
+        assertTrue(staking.isStaker(user1));
+        assertFalse(staking.isStaker(user2));
+    }
+
+    function testStakedAmountMapping() public {
+        vm.startPrank(user1);
+        lotryToken.approve(address(staking), STAKE_AMOUNT);
+        staking.stake(STAKE_AMOUNT);
+        vm.stopPrank();
+
+        assertEq(staking.stakedAmount(user1), STAKE_AMOUNT);
+        assertEq(staking.stakedAmount(user2), 0);
+    }
+
+    // ============ getAllStakedAmounts Tests ============
+
+    function testGetAllStakedAmountsOnlyOwner() public {
         vm.prank(user1);
-        staking.claimReward(1);
-
-        uint256 balanceAfter = rewardToken1.balanceOf(user1);
-        assertEq(balanceAfter - balanceBefore, REWARD_AMOUNT);
+        vm.expectRevert();
+        staking.getAllStakedAmounts();
     }
 
-    function testCannotClaimTwice() public {
-        // Setup and claim once
-        vm.startPrank(user1);
-        lotryToken.approve(address(staking), STAKE_AMOUNT);
-        staking.stake(STAKE_AMOUNT);
-        vm.stopPrank();
+    function testGetAllStakedAmountsEmpty() public {
+        vm.prank(owner);
+        (address[] memory _stakers, uint256[] memory _amounts, uint256 _totalStaked) = staking.getAllStakedAmounts();
 
-        vm.startPrank(owner);
-        rewardToken1.approve(address(staking), REWARD_AMOUNT);
-        staking.setDailyReward(address(rewardToken1), REWARD_AMOUNT);
-        vm.stopPrank();
-
-        vm.startPrank(user1);
-        staking.claimReward(1);
-
-        // Try to claim again
-        vm.expectRevert(LotryStaking.AlreadyClaimed.selector);
-        staking.claimReward(1);
-        vm.stopPrank();
+        assertEq(_stakers.length, 0);
+        assertEq(_amounts.length, 0);
+        assertEq(_totalStaked, 0);
     }
 
-    function testCannotClaimInvalidDay() public {
-        vm.prank(user1);
-        vm.expectRevert(LotryStaking.NoRewardForDay.selector);
-        staking.claimReward(999);
-    }
-
-    function testMultipleDaysRewards() public {
-        // User1 stakes
-        vm.startPrank(user1);
-        lotryToken.approve(address(staking), STAKE_AMOUNT);
-        staking.stake(STAKE_AMOUNT);
-        vm.stopPrank();
-
-        // Day 1 reward
-        vm.startPrank(owner);
-        rewardToken1.approve(address(staking), REWARD_AMOUNT);
-        staking.setDailyReward(address(rewardToken1), REWARD_AMOUNT);
-        vm.stopPrank();
-
-        // Day 2 reward (different token)
-        vm.startPrank(owner);
-        rewardToken2.approve(address(staking), REWARD_AMOUNT * 2);
-        staking.setDailyReward(address(rewardToken2), REWARD_AMOUNT * 2);
-        vm.stopPrank();
-
-        assertEq(staking.currentDay(), 2);
-
-        // Claim both days
-        vm.startPrank(user1);
-        staking.claimReward(1);
-        staking.claimReward(2);
-        vm.stopPrank();
-
-        assertEq(rewardToken1.balanceOf(user1), REWARD_AMOUNT);
-        assertEq(rewardToken2.balanceOf(user1), REWARD_AMOUNT * 2);
-    }
-
-    // ============ Unstaking Tests ============
-
-    function testInitiateUnstake() public {
-        // Stake first
-        vm.startPrank(user1);
-        lotryToken.approve(address(staking), STAKE_AMOUNT);
-        staking.stake(STAKE_AMOUNT);
-
-        // Initiate unstake
-        staking.initiateUnstake();
-        vm.stopPrank();
-
-        (,, bool isUnstaking, uint256 unlockTime) = staking.getStakeInfo(user1);
-        assertTrue(isUnstaking);
-        assertEq(unlockTime, block.timestamp + 2 weeks);
-
-        // Total staked should decrease
-        assertEq(staking.totalStaked(), 0);
-    }
-
-    function testCannotUnstakeBeforePeriod() public {
-        // Stake and initiate unstake
-        vm.startPrank(user1);
-        lotryToken.approve(address(staking), STAKE_AMOUNT);
-        staking.stake(STAKE_AMOUNT);
-        staking.initiateUnstake();
-
-        // Try to unstake immediately
-        vm.expectRevert(LotryStaking.UnlockPeriodNotPassed.selector);
-        staking.unstake();
-        vm.stopPrank();
-    }
-
-    function testUnstakeAfterPeriod() public {
-        // Stake and initiate unstake
-        vm.startPrank(user1);
-        lotryToken.approve(address(staking), STAKE_AMOUNT);
-        staking.stake(STAKE_AMOUNT);
-        staking.initiateUnstake();
-
-        // Fast forward 2 weeks
-        vm.warp(block.timestamp + 2 weeks);
-
-        // Unstake
-        uint256 balanceBefore = lotryToken.balanceOf(user1);
-        staking.unstake();
-        uint256 balanceAfter = lotryToken.balanceOf(user1);
-
-        assertEq(balanceAfter - balanceBefore, STAKE_AMOUNT);
-        vm.stopPrank();
-    }
-
-    function testNoRewardDuringUnstaking() public {
+    function testGetAllStakedAmounts() public {
         // User1 stakes
         vm.startPrank(user1);
         lotryToken.approve(address(staking), STAKE_AMOUNT);
@@ -307,31 +264,113 @@ contract LotryStakingTest is Test {
 
         // User2 stakes
         vm.startPrank(user2);
+        lotryToken.approve(address(staking), STAKE_AMOUNT * 2);
+        staking.stake(STAKE_AMOUNT * 2);
+        vm.stopPrank();
+
+        // User3 stakes
+        vm.startPrank(user3);
+        lotryToken.approve(address(staking), STAKE_AMOUNT * 3);
+        staking.stake(STAKE_AMOUNT * 3);
+        vm.stopPrank();
+
+        vm.prank(owner);
+        (address[] memory _stakers, uint256[] memory _amounts, uint256 _totalStaked) = staking.getAllStakedAmounts();
+
+        assertEq(_stakers.length, 3);
+        assertEq(_amounts.length, 3);
+        assertEq(_totalStaked, STAKE_AMOUNT * 6);
+
+        assertEq(_stakers[0], user1);
+        assertEq(_stakers[1], user2);
+        assertEq(_stakers[2], user3);
+
+        assertEq(_amounts[0], STAKE_AMOUNT);
+        assertEq(_amounts[1], STAKE_AMOUNT * 2);
+        assertEq(_amounts[2], STAKE_AMOUNT * 3);
+    }
+
+    // ============ withdrawAll Tests ============
+
+    function testWithdrawAllOnlyOwner() public {
+        // User1 stakes first
+        vm.startPrank(user1);
         lotryToken.approve(address(staking), STAKE_AMOUNT);
         staking.stake(STAKE_AMOUNT);
         vm.stopPrank();
 
-        // User1 initiates unstake
+        // Non-owner tries to withdraw
         vm.prank(user1);
-        staking.initiateUnstake();
-
-        // Set daily reward (total staked = 1000, only user2)
-        vm.startPrank(owner);
-        rewardToken1.approve(address(staking), REWARD_AMOUNT);
-        staking.setDailyReward(address(rewardToken1), REWARD_AMOUNT);
-        vm.stopPrank();
-
-        // User2 should get ALL rewards
-        uint256 user2Reward = staking.calculateReward(user2, 1);
-        assertEq(user2Reward, REWARD_AMOUNT);
-
-        // User1 should get 0 (unstaking)
-        uint256 user1Reward = staking.calculateReward(user1, 1);
-        console.log("user1Reward", user1Reward);
-        assertEq(user1Reward, 0);
+        vm.expectRevert();
+        staking.withdrawAll();
     }
 
-    // ============ Edge Cases ============
+    function testWithdrawAllRevertsWhenEmpty() public {
+        vm.prank(owner);
+        vm.expectRevert(LotryStaking.ZeroAmount.selector);
+        staking.withdrawAll();
+    }
+
+    function testWithdrawAll() public {
+        // Multiple users stake
+        vm.startPrank(user1);
+        lotryToken.approve(address(staking), STAKE_AMOUNT);
+        staking.stake(STAKE_AMOUNT);
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        lotryToken.approve(address(staking), STAKE_AMOUNT * 2);
+        staking.stake(STAKE_AMOUNT * 2);
+        vm.stopPrank();
+
+        uint256 totalStakedBefore = staking.totalStaked();
+        uint256 ownerBalanceBefore = lotryToken.balanceOf(owner);
+
+        // Owner withdraws all
+        vm.prank(owner);
+        staking.withdrawAll();
+
+        // Verify tokens transferred to owner
+        assertEq(lotryToken.balanceOf(owner), ownerBalanceBefore + totalStakedBefore);
+
+        // Verify state reset
+        assertEq(staking.totalStaked(), 0);
+        assertEq(staking.stakedAmount(user1), 0);
+        assertEq(staking.stakedAmount(user2), 0);
+
+        // Contract should have 0 balance
+        assertEq(lotryToken.balanceOf(address(staking)), 0);
+    }
+
+    function testWithdrawAllEmitsEvent() public {
+        vm.startPrank(user1);
+        lotryToken.approve(address(staking), STAKE_AMOUNT);
+        staking.stake(STAKE_AMOUNT);
+        vm.stopPrank();
+
+        vm.prank(owner);
+        vm.expectEmit(true, false, false, true);
+        emit AdminWithdraw(owner, STAKE_AMOUNT);
+        staking.withdrawAll();
+    }
+
+    function testWithdrawAllPreservesStakersList() public {
+        // Stake first
+        vm.startPrank(user1);
+        lotryToken.approve(address(staking), STAKE_AMOUNT);
+        staking.stake(STAKE_AMOUNT);
+        vm.stopPrank();
+
+        // Withdraw all
+        vm.prank(owner);
+        staking.withdrawAll();
+
+        // Staker list should still contain user1 (isStaker remains true)
+        assertTrue(staking.isStaker(user1));
+        assertEq(staking.getStakersCount(), 1);
+    }
+
+    // ============ Fuzz Tests ============
 
     function testFuzzStake(uint256 amount) public {
         vm.assume(amount > 0 && amount <= 10000 * 10 ** 18);
@@ -343,55 +382,72 @@ contract LotryStakingTest is Test {
         staking.stake(amount);
         vm.stopPrank();
 
-        (uint256 stakedAmount,,,) = staking.getStakeInfo(user1);
-        assertEq(stakedAmount, amount);
+        assertEq(staking.getStakeAmount(user1), amount);
+        assertEq(staking.totalStaked(), amount);
     }
 
-    function testStakeAfterFullUnstakeCycle() public {
-        // First cycle
-        vm.startPrank(user1);
-        lotryToken.approve(address(staking), STAKE_AMOUNT * 2);
-        staking.stake(STAKE_AMOUNT);
-        staking.initiateUnstake();
-        vm.warp(block.timestamp + 2 weeks);
-        staking.unstake();
+    function testFuzzMultipleStakes(uint256 amount1, uint256 amount2) public {
+        vm.assume(amount1 > 0 && amount1 <= 5000 * 10 ** 18);
+        vm.assume(amount2 > 0 && amount2 <= 5000 * 10 ** 18);
 
-        // Second cycle (should work)
-        staking.stake(STAKE_AMOUNT);
+        lotryToken.mint(user1, amount1 + amount2);
+
+        vm.startPrank(user1);
+        lotryToken.approve(address(staking), amount1 + amount2);
+        staking.stake(amount1);
+        staking.stake(amount2);
         vm.stopPrank();
 
-        (uint256 amount,,,) = staking.getStakeInfo(user1);
-        assertEq(amount, STAKE_AMOUNT);
+        assertEq(staking.getStakeAmount(user1), amount1 + amount2);
+        assertEq(staking.totalStaked(), amount1 + amount2);
     }
 
-    function testRewardRoundingEdgeCase() public {
-        // Create scenario with potential rounding issues
-        // User1: 1 wei
-        // User2: 999 wei
-        // Total: 1000 wei
-        // Reward: 999 wei
+    // ============ Edge Cases ============
 
+    function testMinimumStake() public {
         vm.startPrank(user1);
         lotryToken.approve(address(staking), 1);
         staking.stake(1);
         vm.stopPrank();
 
-        vm.startPrank(user2);
-        lotryToken.approve(address(staking), 999);
-        staking.stake(999);
+        assertEq(staking.getStakeAmount(user1), 1);
+        assertEq(staking.totalStaked(), 1);
+    }
+
+    function testLargeStake() public {
+        uint256 largeAmount = 100000 * 10 ** 18;
+        lotryToken.mint(user1, largeAmount);
+
+        vm.startPrank(user1);
+        lotryToken.approve(address(staking), largeAmount);
+        staking.stake(largeAmount);
         vm.stopPrank();
 
-        vm.startPrank(owner);
-        rewardToken1.approve(address(staking), 999);
-        staking.setDailyReward(address(rewardToken1), 999);
+        assertEq(staking.getStakeAmount(user1), largeAmount);
+        assertEq(staking.totalStaked(), largeAmount);
+    }
+
+    function testTokensTransferredToContract() public {
+        uint256 balanceBefore = lotryToken.balanceOf(address(staking));
+
+        vm.startPrank(user1);
+        lotryToken.approve(address(staking), STAKE_AMOUNT);
+        staking.stake(STAKE_AMOUNT);
         vm.stopPrank();
 
-        // User1 gets floor(999 * 1 / 1000) = 0
-        uint256 user1Reward = staking.calculateReward(user1, 1);
-        assertEq(user1Reward, 0);
+        uint256 balanceAfter = lotryToken.balanceOf(address(staking));
+        assertEq(balanceAfter - balanceBefore, STAKE_AMOUNT);
+    }
 
-        // User2 gets floor(999 * 999 / 1000) = 998
-        uint256 user2Reward = staking.calculateReward(user2, 1);
-        assertEq(user2Reward, 998);
+    function testUserBalanceDecreasedAfterStake() public {
+        uint256 balanceBefore = lotryToken.balanceOf(user1);
+
+        vm.startPrank(user1);
+        lotryToken.approve(address(staking), STAKE_AMOUNT);
+        staking.stake(STAKE_AMOUNT);
+        vm.stopPrank();
+
+        uint256 balanceAfter = lotryToken.balanceOf(user1);
+        assertEq(balanceBefore - balanceAfter, STAKE_AMOUNT);
     }
 }

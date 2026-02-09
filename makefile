@@ -1,4 +1,4 @@
-.PHONY: help install build test deploy launchpad vrf test-vrf verify-launchpad verify-vrf verify-staking deploy-staking launch-token verify-token clean coverage env-setup wallet-import wallet-list check-env
+.PHONY: help install build test deploy launchpad vrf test-vrf verify-launchpad verify-vrf verify-staking deploy-staking launch-token verify-token clean coverage env-setup wallet-import wallet-list check-env set-stake-token stake-lotry get-all-staked check-stake-token check-total-staked check-user-stake check-stakers-count check-is-staker withdraw-all-staked
 
 # Default target
 .DEFAULT_GOAL := help
@@ -166,8 +166,7 @@ deploy-staking: check-env ## Deploy LotryStaking contract
 		--rpc-url $(RPC_URL) \
 		--account $(WALLET_NAME) \
 		--sender $(WALLET_ADDR) \
-		--broadcast \
-		--verify $(VERBOSITY)
+		--broadcast $(VERBOSITY)
 	@echo "$(GREEN)✅ LotryStaking deployment complete!$(NC)"
 	@echo "$(YELLOW)ℹ️  Remember to call setStakeToken() to set the staking token$(NC)"
 
@@ -285,6 +284,7 @@ verify-staking: check-env ## Verify LotryStaking contract (usage: make verify-st
 		--constructor-args $$CONSTRUCTOR_ARGS \
 		--compiler-version 0.8.20 \
 		--num-of-optimizations 200 \
+		--via-ir \
 		--watch \
 		$(STAKING_CA) \
 		contracts/LotryStaking.sol:LotryStaking \
@@ -607,214 +607,141 @@ check-lotry-raised: check-env ## Check total LOTRY raised (usage: make check-lot
 
 ##@ LotryStaking Contract Operations
 
-set-stake-token: check-env ## Set the staking token address (usage: make set-stake-token)
+set-stake-token: check-env ## Set the staking token address (usage: make set-stake-token STAKING_CA=0x... STAKE_TOKEN=0x...)
 	@if [ -z "$(STAKING_CA)" ]; then \
 		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
-		echo "   Set in .env or: export STAKING_CA=0x..."; \
+		echo "   Usage: make set-stake-token STAKING_CA=0x... STAKE_TOKEN=0x..."; \
 		exit 1; \
 	fi
 	@if [ -z "$(STAKE_TOKEN)" ]; then \
 		echo "$(RED)❌ STAKE_TOKEN not set!$(NC)"; \
-		echo "   Set in .env or: export STAKE_TOKEN=0x..."; \
+		echo "   Usage: make set-stake-token STAKING_CA=0x... STAKE_TOKEN=0x..."; \
 		exit 1; \
 	fi
-	@echo "$(BLUE)🎫 Setting stake token address...$(NC)"
+	@echo "$(BLUE)🏦 Setting stake token address...$(NC)"
 	@echo "$(YELLOW)   Staking Contract: $(STAKING_CA)$(NC)"
 	@echo "$(YELLOW)   Stake Token: $(STAKE_TOKEN)$(NC)"
-	@cast send $(STAKING_CA) "setStakeToken(address)" $(STAKE_TOKEN) \
-		--rpc-url $(RPC_URL) \
-		--account $(WALLET_NAME)
+	cast send $(STAKING_CA) "setStakeToken(address)" $(STAKE_TOKEN) --rpc-url $(RPC_URL) --account $(WALLET_NAME)
 	@echo "$(GREEN)✅ Stake token address set!$(NC)"
 
-set-daily-stake-rewards: check-env ## Set daily staking reward and deposit tokens (usage: make set-daily-stake-rewards)
+stake-lotry: check-env ## Stake LOTRY tokens (usage: make stake-lotry STAKING_CA=0x... STAKE_TOKEN=0x... AMOUNT=1000)
 	@if [ -z "$(STAKING_CA)" ]; then \
 		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
-		echo "   Set in .env or: export STAKING_CA=0x..."; \
-		exit 1; \
-	fi
-	@if [ -z "$(DAILY_REWARD_TOKEN)" ]; then \
-		echo "$(RED)❌ DAILY_REWARD_TOKEN not set!$(NC)"; \
-		echo "   Set in .env or: export DAILY_REWARD_TOKEN=0x..."; \
-		exit 1; \
-	fi
-	@if [ -z "$(DAILY_STAKE_REWARD_TOKEN_DEPOSIT_AMOUNT)" ]; then \
-		echo "$(RED)❌ DAILY_STAKE_REWARD_TOKEN_DEPOSIT_AMOUNT not set!$(NC)"; \
-		echo "   Set in .env or: export DAILY_STAKE_REWARD_TOKEN_DEPOSIT_AMOUNT=500"; \
-		echo "   Example: 500 for 500 tokens (automatically multiplied by 1e18)"; \
-		exit 1; \
-	fi
-	@echo "$(BLUE)🎁 Setting daily staking reward...$(NC)"
-	@echo "$(YELLOW)   Staking Contract: $(STAKING_CA)$(NC)"
-	@echo "$(YELLOW)   Reward Token: $(DAILY_REWARD_TOKEN)$(NC)"
-	@echo "$(YELLOW)   Amount: $(DAILY_STAKE_REWARD_TOKEN_DEPOSIT_AMOUNT) tokens$(NC)"
-	@echo "$(YELLOW)   Step 1: Approving tokens...$(NC)"
-	@cast send $(DAILY_REWARD_TOKEN) "approve(address,uint256)" $(STAKING_CA) \
-		$(shell echo "$(DAILY_STAKE_REWARD_TOKEN_DEPOSIT_AMOUNT) * 1000000000000000000" | bc) \
-		--rpc-url $(RPC_URL) \
-		--account $(WALLET_NAME)
-	@echo "$(YELLOW)   Step 2: Setting daily reward...$(NC)"
-	@cast send $(STAKING_CA) "setDailyReward(address,uint256)" \
-		$(DAILY_REWARD_TOKEN) \
-		$(shell echo "$(DAILY_STAKE_REWARD_TOKEN_DEPOSIT_AMOUNT) * 1000000000000000000" | bc) \
-		--rpc-url $(RPC_URL) \
-		--account $(WALLET_NAME)
-	@echo "$(GREEN)✅ Daily staking reward set!$(NC)"
-
-
-set-daily-claimable-token-amount: check-env ## Set daily free claimable token amount (usage: make set-daily-claimable-token-amount)
-	@if [ -z "$(STAKING_CA)" ]; then \
-		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
-		echo "   Set in .env or: export STAKING_CA=0x..."; \
-		exit 1; \
-	fi
-	@if [ -z "$(DAILY_CLAIM_REWARD_CLAIMABLE_AMOUNT)" ]; then \
-		echo "$(RED)❌ DAILY_CLAIM_REWARD_CLAIMABLE_AMOUNT not set!$(NC)"; \
-		echo "   Set in .env or: export DAILY_CLAIM_REWARD_CLAIMABLE_AMOUNT=100"; \
-		echo "   Example: 100 for 100 tokens per address (automatically multiplied by 1e18)"; \
-		exit 1; \
-	fi
-	@echo "$(BLUE)🎁 Setting daily claimable token amount...$(NC)"
-	@echo "$(YELLOW)   Staking Contract: $(STAKING_CA)$(NC)"
-	@echo "$(YELLOW)   Amount per claim: $(DAILY_CLAIM_REWARD_CLAIMABLE_AMOUNT) tokens$(NC)"
-	@echo "$(YELLOW)   ⚠️  Note: This resets the daily claim pool to 0$(NC)"
-	@cast send $(STAKING_CA) "setDailyClaim(uint256)" \
-		$(shell echo "$(DAILY_CLAIM_REWARD_CLAIMABLE_AMOUNT) * 1000000000000000000" | bc) \
-		--rpc-url $(RPC_URL) \
-		--account $(WALLET_NAME)
-	@echo "$(GREEN)✅ Daily claimable token amount set!$(NC)"
-	@echo "$(YELLOW)ℹ️  Remember to deposit tokens using: make deposit-daily-claim-reward-tokens$(NC)"
-
-deposit-daily-claim-reward-tokens: check-env ## Deposit tokens for daily free claims (usage: make deposit-daily-claim-reward-tokens)
-	@if [ -z "$(STAKING_CA)" ]; then \
-		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
-		echo "   Set in .env or: export STAKING_CA=0x..."; \
-		exit 1; \
-	fi
-	@if [ -z "$(DAILY_REWARD_TOKEN)" ]; then \
-		echo "$(RED)❌ DAILY_REWARD_TOKEN not set!$(NC)"; \
-		echo "   Set in .env or: export DAILY_REWARD_TOKEN=0x..."; \
-		exit 1; \
-	fi
-	@if [ -z "$(DAILY_CLAIM_REWARD_TOKEN_DEPOSIT_AMOUNT)" ]; then \
-		echo "$(RED)❌ DAILY_CLAIM_REWARD_TOKEN_DEPOSIT_AMOUNT not set!$(NC)"; \
-		echo "   Set in .env or: export DAILY_CLAIM_REWARD_TOKEN_DEPOSIT_AMOUNT=1000"; \
-		echo "   Example: 1000 for 1000 tokens (automatically multiplied by 1e18)"; \
-		exit 1; \
-	fi
-	@echo "$(BLUE)💰 Depositing daily claim reward tokens...$(NC)"
-	@echo "$(YELLOW)   Staking Contract: $(STAKING_CA)$(NC)"
-	@echo "$(YELLOW)   Reward Token: $(DAILY_REWARD_TOKEN)$(NC)"
-	@echo "$(YELLOW)   Amount: $(DAILY_CLAIM_REWARD_TOKEN_DEPOSIT_AMOUNT) tokens$(NC)"
-	@echo "$(YELLOW)   Step 1: Approving tokens...$(NC)"
-	@cast send $(DAILY_REWARD_TOKEN) "approve(address,uint256)" $(STAKING_CA) \
-		$(shell echo "$(DAILY_CLAIM_REWARD_TOKEN_DEPOSIT_AMOUNT) * 1000000000000000000" | bc) \
-		--rpc-url $(RPC_URL) \
-		--account $(WALLET_NAME)
-	@echo "$(YELLOW)   Step 2: Depositing tokens...$(NC)"
-	@cast send $(STAKING_CA) "depositDailyClaimTokens(uint256)" \
-		$(shell echo "$(DAILY_CLAIM_REWARD_TOKEN_DEPOSIT_AMOUNT) * 1000000000000000000" | bc) \
-		--rpc-url $(RPC_URL) \
-		--account $(WALLET_NAME)
-	@echo "$(GREEN)✅ Daily claim reward tokens deposited!$(NC)"
-
-setup-staking: check-env ## Complete staking setup: set tokens, rewards, and deposit (usage: make setup-staking)
-	@if [ -z "$(STAKING_CA)" ]; then \
-		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
-		echo "   Set in .env or: export STAKING_CA=0x..."; \
+		echo "   Usage: make stake-lotry STAKING_CA=0x... STAKE_TOKEN=0x... AMOUNT=1000"; \
 		exit 1; \
 	fi
 	@if [ -z "$(STAKE_TOKEN)" ]; then \
 		echo "$(RED)❌ STAKE_TOKEN not set!$(NC)"; \
-		echo "   Set in .env or: export STAKE_TOKEN=0x..."; \
+		echo "   Usage: make stake-lotry STAKING_CA=0x... STAKE_TOKEN=0x... AMOUNT=1000"; \
 		exit 1; \
 	fi
-	@if [ -z "$(DAILY_REWARD_TOKEN)" ]; then \
-		echo "$(RED)❌ DAILY_REWARD_TOKEN not set!$(NC)"; \
-		echo "   Set in .env or: export DAILY_REWARD_TOKEN=0x..."; \
+	@if [ -z "$(AMOUNT)" ]; then \
+		echo "$(RED)❌ AMOUNT not set!$(NC)"; \
+		echo "   Usage: make stake-lotry STAKING_CA=0x... STAKE_TOKEN=0x... AMOUNT=1000"; \
+		echo "   Example: AMOUNT=1000 for 1000 tokens (automatically multiplied by 1e18)"; \
 		exit 1; \
 	fi
-	@if [ -z "$(DAILY_STAKE_REWARD_TOKEN_DEPOSIT_AMOUNT)" ]; then \
-		echo "$(RED)❌ DAILY_STAKE_REWARD_TOKEN_DEPOSIT_AMOUNT not set!$(NC)"; \
-		echo "   Set in .env or: export DAILY_STAKE_REWARD_TOKEN_DEPOSIT_AMOUNT=500"; \
+	@echo "$(BLUE)🏦 Staking LOTRY tokens...$(NC)"
+	@echo "$(YELLOW)   Amount: $(AMOUNT) tokens$(NC)"
+	@echo "$(YELLOW)   Step 1: Approving tokens...$(NC)"
+	cast send $(STAKE_TOKEN) "approve(address,uint256)" $(STAKING_CA) $(shell echo "$(AMOUNT) * 1000000000000000000" | bc) --rpc-url $(RPC_URL) --account $(WALLET_NAME)
+	@echo "$(YELLOW)   Step 2: Staking tokens...$(NC)"
+	cast send $(STAKING_CA) "stake(uint256)" $(shell echo "$(AMOUNT) * 1000000000000000000" | bc) --rpc-url $(RPC_URL) --account $(WALLET_NAME)
+	@echo "$(GREEN)✅ LOTRY tokens staked!$(NC)"
+
+withdraw-all-staked: check-env ## Withdraw all staked tokens to admin wallet (owner only) (usage: make withdraw-all-staked STAKING_CA=0x...)
+	@if [ -z "$(STAKING_CA)" ]; then \
+		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
+		echo "   Usage: make withdraw-all-staked STAKING_CA=0x..."; \
 		exit 1; \
 	fi
-	@if [ -z "$(DAILY_CLAIM_REWARD_CLAIMABLE_AMOUNT)" ]; then \
-		echo "$(RED)❌ DAILY_CLAIM_REWARD_CLAIMABLE_AMOUNT not set!$(NC)"; \
-		echo "   Set in .env or: export DAILY_CLAIM_REWARD_CLAIMABLE_AMOUNT=100"; \
-		exit 1; \
-	fi
-	@if [ -z "$(DAILY_CLAIM_REWARD_TOKEN_DEPOSIT_AMOUNT)" ]; then \
-		echo "$(RED)❌ DAILY_CLAIM_REWARD_TOKEN_DEPOSIT_AMOUNT not set!$(NC)"; \
-		echo "   Set in .env or: export DAILY_CLAIM_REWARD_TOKEN_DEPOSIT_AMOUNT=1000"; \
-		exit 1; \
-	fi
-	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
-	@echo "$(BLUE)🏦 LOTRY STAKING COMPLETE SETUP$(NC)"
-	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
+	@echo "$(BLUE)💸 Withdrawing all staked tokens to admin wallet...$(NC)"
 	@echo "$(YELLOW)   Staking Contract: $(STAKING_CA)$(NC)"
-	@echo "$(YELLOW)   Stake Token: $(STAKE_TOKEN)$(NC)"
-	@echo "$(YELLOW)   Daily Reward Token: $(DAILY_REWARD_TOKEN)$(NC)"
-	@echo "$(YELLOW)   Daily Stake Rewards: $(DAILY_STAKE_REWARD_TOKEN_DEPOSIT_AMOUNT) tokens$(NC)"
-	@echo "$(YELLOW)   Daily Claimable Amount: $(DAILY_CLAIM_REWARD_CLAIMABLE_AMOUNT) tokens$(NC)"
-	@echo "$(YELLOW)   Daily Claim Pool Deposit: $(DAILY_CLAIM_REWARD_TOKEN_DEPOSIT_AMOUNT) tokens$(NC)"
-	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
+	@echo "$(YELLOW)   Admin Wallet: $(WALLET_ADDR)$(NC)"
+	cast send $(STAKING_CA) "withdrawAll()" --rpc-url $(RPC_URL) --account $(WALLET_NAME)
+	@echo "$(GREEN)✅ All staked tokens withdrawn to admin wallet!$(NC)"
+
+##@ LotryStaking Contract Views
+
+get-all-staked: check-env ## Get all stakers and their staked amounts (owner only) (usage: make get-all-staked STAKING_CA=0x...)
+	@if [ -z "$(STAKING_CA)" ]; then \
+		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
+		echo "   Usage: make get-all-staked STAKING_CA=0x..."; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)🔍 Getting all staked amounts...$(NC)"
+	@echo "$(YELLOW)   Contract: $(STAKING_CA)$(NC)"
+	@echo "$(YELLOW)   Caller (owner): $(WALLET_ADDR)$(NC)"
 	@echo ""
-	@echo "$(BLUE)📝 Step 1/6: Setting stake token...$(NC)"
-	@cast send $(STAKING_CA) "setStakeToken(address)" $(STAKE_TOKEN) \
-		--rpc-url $(RPC_URL) \
-		--account $(WALLET_NAME)
-	@echo "$(GREEN)✅ Stake token set!$(NC)"
-	@echo ""
-	@echo "$(BLUE)📝 Step 2/6: Approving tokens for daily stake rewards...$(NC)"
-	@cast send $(DAILY_REWARD_TOKEN) "approve(address,uint256)" $(STAKING_CA) \
-		$(shell echo "$(DAILY_STAKE_REWARD_TOKEN_DEPOSIT_AMOUNT) * 1000000000000000000" | bc) \
-		--rpc-url $(RPC_URL) \
-		--account $(WALLET_NAME)
-	@echo "$(GREEN)✅ Tokens approved!$(NC)"
-	@echo ""
-	@echo "$(BLUE)📝 Step 3/6: Setting daily stake rewards...$(NC)"
-	@cast send $(STAKING_CA) "setDailyReward(address,uint256)" \
-		$(DAILY_REWARD_TOKEN) \
-		$(shell echo "$(DAILY_STAKE_REWARD_TOKEN_DEPOSIT_AMOUNT) * 1000000000000000000" | bc) \
-		--rpc-url $(RPC_URL) \
-		--account $(WALLET_NAME)
-	@echo "$(GREEN)✅ Daily stake rewards set!$(NC)"
-	@echo ""
-	@echo "$(BLUE)📝 Step 4/6: Setting daily claimable amount...$(NC)"
-	@cast send $(STAKING_CA) "setDailyClaim(uint256)" \
-		$(shell echo "$(DAILY_CLAIM_REWARD_CLAIMABLE_AMOUNT) * 1000000000000000000" | bc) \
-		--rpc-url $(RPC_URL) \
-		--account $(WALLET_NAME)
-	@echo "$(GREEN)✅ Daily claimable amount set!$(NC)"
-	@echo ""
-	@echo "$(BLUE)📝 Step 5/6: Approving tokens for daily claim pool...$(NC)"
-	@cast send $(DAILY_REWARD_TOKEN) "approve(address,uint256)" $(STAKING_CA) \
-		$(shell echo "$(DAILY_CLAIM_REWARD_TOKEN_DEPOSIT_AMOUNT) * 1000000000000000000" | bc) \
-		--rpc-url $(RPC_URL) \
-		--account $(WALLET_NAME)
-	@echo "$(GREEN)✅ Tokens approved!$(NC)"
-	@echo ""
-	@echo "$(BLUE)📝 Step 6/6: Depositing daily claim tokens...$(NC)"
-	@cast send $(STAKING_CA) "depositDailyClaimTokens(uint256)" \
-		$(shell echo "$(DAILY_CLAIM_REWARD_TOKEN_DEPOSIT_AMOUNT) * 1000000000000000000" | bc) \
-		--rpc-url $(RPC_URL) \
-		--account $(WALLET_NAME)
-	@echo "$(GREEN)✅ Daily claim tokens deposited!$(NC)"
-	@echo ""
-	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
-	@echo "$(GREEN)🎉 STAKING SETUP COMPLETE!$(NC)"
-	@echo "$(BLUE)━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━$(NC)"
-	@echo ""
-	@echo "$(YELLOW)📊 Summary:$(NC)"
-	@echo "   ✅ Stake token configured"
-	@echo "   ✅ Daily stake rewards: $(DAILY_STAKE_REWARD_TOKEN_DEPOSIT_AMOUNT) tokens for stakers"
-	@echo "   ✅ Daily free claims: $(DAILY_CLAIM_REWARD_CLAIMABLE_AMOUNT) tokens per address"
-	@echo "   ✅ Daily claim pool: $(DAILY_CLAIM_REWARD_TOKEN_DEPOSIT_AMOUNT) tokens deposited"
-	@echo ""
-	@echo "$(YELLOW)🔗 Next steps:$(NC)"
-	@echo "   • Users can now stake: make stake-tokens AMOUNT=1000"
-	@echo "   • Users can claim free tokens: make claim-daily-free"
-	@echo ""
+	cast call $(STAKING_CA) "getAllStakedAmounts()(address[],uint256[],uint256)" --from $(WALLET_ADDR) --rpc-url $(RPC_URL)
+
+check-stake-token: check-env ## Check stake token address (usage: make check-stake-token STAKING_CA=0x...)
+	@if [ -z "$(STAKING_CA)" ]; then \
+		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
+		echo "   Usage: make check-stake-token STAKING_CA=0x..."; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)🔍 Checking stake token address...$(NC)"
+	@echo "$(YELLOW)   Contract: $(STAKING_CA)$(NC)"
+	cast call $(STAKING_CA) "stakeToken()(address)" --rpc-url $(RPC_URL)
+
+check-total-staked: check-env ## Check total staked amount (usage: make check-total-staked STAKING_CA=0x...)
+	@if [ -z "$(STAKING_CA)" ]; then \
+		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
+		echo "   Usage: make check-total-staked STAKING_CA=0x..."; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)🔍 Checking total staked...$(NC)"
+	@echo "$(YELLOW)   Contract: $(STAKING_CA)$(NC)"
+	@result=$$(cast call $(STAKING_CA) "totalStaked()(uint256)" --rpc-url $(RPC_URL) | sed 's/ \[.*\]//'); \
+	formatted=$$(cast --from-wei $$result); \
+	echo "$(GREEN)   Raw: $$result wei$(NC)"; \
+	echo "$(WHITE)   Formatted: $$formatted LOTRY$(NC)"
+
+check-user-stake: check-env ## Check user's staked amount (usage: make check-user-stake STAKING_CA=0x... USER_ADDR=0x...)
+	@if [ -z "$(STAKING_CA)" ]; then \
+		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
+		echo "   Usage: make check-user-stake STAKING_CA=0x... USER_ADDR=0x..."; \
+		exit 1; \
+	fi
+	@if [ -z "$(USER_ADDR)" ]; then \
+		echo "$(RED)❌ USER_ADDR not set!$(NC)"; \
+		echo "   Usage: make check-user-stake STAKING_CA=0x... USER_ADDR=0x..."; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)🔍 Checking user stake amount...$(NC)"
+	@echo "$(YELLOW)   Contract: $(STAKING_CA)$(NC)"
+	@echo "$(YELLOW)   User: $(USER_ADDR)$(NC)"
+	@result=$$(cast call $(STAKING_CA) "getStakeAmount(address)(uint256)" $(USER_ADDR) --rpc-url $(RPC_URL) | sed 's/ \[.*\]//'); \
+	formatted=$$(cast --from-wei $$result); \
+	echo "$(GREEN)   Raw: $$result wei$(NC)"; \
+	echo "$(WHITE)   Formatted: $$formatted LOTRY$(NC)"
+
+check-stakers-count: check-env ## Check total number of stakers (usage: make check-stakers-count STAKING_CA=0x...)
+	@if [ -z "$(STAKING_CA)" ]; then \
+		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
+		echo "   Usage: make check-stakers-count STAKING_CA=0x..."; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)🔍 Checking stakers count...$(NC)"
+	@echo "$(YELLOW)   Contract: $(STAKING_CA)$(NC)"
+	cast call $(STAKING_CA) "getStakersCount()(uint256)" --rpc-url $(RPC_URL)
+
+check-is-staker: check-env ## Check if address is a staker (usage: make check-is-staker STAKING_CA=0x... USER_ADDR=0x...)
+	@if [ -z "$(STAKING_CA)" ]; then \
+		echo "$(RED)❌ STAKING_CA not set!$(NC)"; \
+		echo "   Usage: make check-is-staker STAKING_CA=0x... USER_ADDR=0x..."; \
+		exit 1; \
+	fi
+	@if [ -z "$(USER_ADDR)" ]; then \
+		echo "$(RED)❌ USER_ADDR not set!$(NC)"; \
+		echo "   Usage: make check-is-staker STAKING_CA=0x... USER_ADDR=0x..."; \
+		exit 1; \
+	fi
+	@echo "$(BLUE)🔍 Checking if user is a staker...$(NC)"
+	@echo "$(YELLOW)   Contract: $(STAKING_CA)$(NC)"
+	@echo "$(YELLOW)   User: $(USER_ADDR)$(NC)"
+	cast call $(STAKING_CA) "isStaker(address)(bool)" $(USER_ADDR) --rpc-url $(RPC_URL)
 
 ##@ Quick Commands
 
